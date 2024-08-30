@@ -3,3 +3,11 @@ numpy
 scikit-learn
 google-ads
 oauth2client
+gspread
+traceback
+plotly
+plotly-express
+re
+enum
+datetime
+
