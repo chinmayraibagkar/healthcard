@@ -101,14 +101,14 @@ if st.session_state.fetch_data:
     for account in selected_accounts:
         def KW_data_analysis():
             st.session_state.kw_data = get_kw_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
-            st.dataframe(st.session_state.kw_data)
+            #st.dataframe(st.session_state.kw_data)
 
             #get a list of duplicate KWs which have same keyword text and match type, but different ad group. Get campain name, ad group name, keyword text, match type.
-            st.session_state.duplicate_kw = st.session_state.kw_data[st.session_state.kw_data.duplicated(subset=["Keyword Text", "Match Type"], keep=False)]
-            st.session_state.duplicate_kw = st.session_state.duplicate_kw[["Campaign Name", "Ad Group", "Keyword Text", "Match Type"]]
-            st.session_state.duplicate_kw.reset_index(drop=True, inplace=True)
-            st.markdown(''':blue-background[**Duplicate Keywords**]''')
-            st.dataframe(st.session_state.duplicate_kw)
+            # st.session_state.duplicate_kw = st.session_state.kw_data[st.session_state.kw_data.duplicated(subset=["Keyword Text", "Match Type"], keep=False)]
+            # st.session_state.duplicate_kw = st.session_state.duplicate_kw[["Campaign Name", "Ad Group", "Keyword Text", "Match Type"]]
+            # st.session_state.duplicate_kw.reset_index(drop=True, inplace=True)
+            # st.markdown(''':blue-background[**Duplicate Keywords**]''')
+            # st.dataframe(st.session_state.duplicate_kw)
             
             # Calculate weighted average of quality score for each ad group
             st.session_state.kw_data["Impressions"] = st.session_state.kw_data["Impressions"].astype(int)
