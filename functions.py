@@ -4,7 +4,6 @@ from google.ads.googleads.client import GoogleAdsClient
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import traceback
-from mydata import *
 import pandas as pd
 import plotly.express as px
 import numpy as np
