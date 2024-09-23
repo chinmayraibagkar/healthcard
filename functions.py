@@ -78,7 +78,7 @@ def get_kw_data(client, customer_id, start_date, end_date):
     FROM
         keyword_view
     WHERE
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED' 
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED' 
         AND ad_group_criterion.negative != TRUE AND campaign.advertising_channel_type = 'SEARCH'
     """
 
@@ -119,7 +119,7 @@ def get_ad_data(client, customer_id, start_date, end_date):
     FROM
         ad_group_ad
     WHERE
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND metrics.impressions > 0 AND campaign.advertising_channel_type = 'SEARCH'
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND metrics.impressions > 0 AND campaign.advertising_channel_type = 'SEARCH'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
