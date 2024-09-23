@@ -398,7 +398,7 @@ def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
     FROM 
     ad_group_ad_asset_view
     WHERE 
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED'
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND campaign.advertising_channel_type = 'MULTI_CHANNEL'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
@@ -436,7 +436,7 @@ def get_UAC_data_network_level(client, customer_id, start_date, end_date):
     FROM 
     ad_group
     WHERE 
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED'
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND campaign.advertising_channel_type = 'MULTI_CHANNEL'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
