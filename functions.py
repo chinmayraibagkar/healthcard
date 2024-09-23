@@ -4,6 +4,8 @@ from google.ads.googleads.client import GoogleAdsClient
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import traceback
+from mydata import *
+import pandas as pd
 import plotly.express as px
 import numpy as np
 import re
@@ -72,11 +74,13 @@ def get_kw_data(client, customer_id, start_date, end_date):
         metrics.impressions,
         metrics.cost_micros,
         metrics.historical_quality_score,
-        ad_group_criterion.status
+        ad_group_criterion.status,
+        ad_group_criterion.location.geo_target_constant
     FROM
         keyword_view
     WHERE
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED' AND ad_group_criterion.negative != TRUE
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group_criterion.status = 'ENABLED' 
+        AND ad_group_criterion.negative != TRUE AND campaign.advertising_channel_type = 'SEARCH'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
@@ -93,6 +97,7 @@ def get_kw_data(client, customer_id, start_date, end_date):
                 "Cost": row.metrics.cost_micros / 1e6 if hasattr(row.metrics, 'cost_micros') else 'NA', # Converting micros to standard currency unit
                 "Quality Score": row.metrics.historical_quality_score if hasattr(row.metrics, 'historical_quality_score') else 'NA',
                 "Status": row.ad_group_criterion.status if hasattr(row.ad_group_criterion, 'status') else 'NA',
+                "Location": row.ad_group_criterion.location.geo_target_constant if hasattr(row.ad_group_criterion.location, 'geo_target_constant') else 'NA',
             })
     
     return pd.DataFrame(data)
@@ -115,7 +120,7 @@ def get_ad_data(client, customer_id, start_date, end_date):
     FROM
         ad_group_ad
     WHERE
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND metrics.impressions > 0
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND metrics.impressions > 0 AND campaign.advertising_channel_type = 'SEARCH'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
@@ -164,7 +169,7 @@ def get_pmax_data(client, customer_id, start_date, end_date):
     FROM
         asset_group_product_group_view
     WHERE
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED'
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'PERFORMANCE_MAX'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
@@ -373,3 +378,78 @@ def plot_pie_chart(data, column, title, names, color):
         font_color='white'
     )
     st.plotly_chart(fig)
+
+
+def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
+    ga_service = client.get_service("GoogleAdsService", version="v17")
+
+    # Constructing the query
+    query = f"""
+    SELECT
+        campaign.name, 
+        ad_group.name,
+        asset.name,
+        asset.text_asset.text,
+        asset.youtube_video_asset.youtube_video_title,
+        asset.type,
+        segments.ad_network_type,
+        metrics.biddable_app_post_install_conversions,
+        metrics.impressions,
+        metrics.cost_micros
+    FROM 
+    ad_group_ad_asset_view
+    WHERE 
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED'
+    """
+
+    response = ga_service.search_stream(customer_id=customer_id, query=query)
+    
+    data = []
+    for batch in response:
+        print(f"Batch: {batch}")
+        for row in batch.results:
+            data.append({
+                "Campaign Name": row.campaign.name if hasattr(row.campaign, 'name') else 'NA',
+                "Ad Group": row.ad_group.name if hasattr(row.ad_group, 'name') else 'NA',
+                "Asset Name": row.asset.name if hasattr(row.asset, 'name') else 'NA',
+                "Asset Text": row.asset.text_asset.text if hasattr(row.asset.text_asset, 'text') else 'NA',
+                "Video Title": row.asset.youtube_video_asset.youtube_video_title if hasattr(row.asset.youtube_video_asset, 'youtube_video_title') else 'NA',
+                "Asset Type": row.asset.type.name if hasattr(row.asset, 'type') else 'NA',
+                "Ad Network Type": row.segments.ad_network_type.name if hasattr(row.segments, 'ad_network_type') else 'NA',
+                "Impressions": row.metrics.impressions if hasattr(row.metrics, 'impressions') else 'NA',
+                "Cost": round(row.metrics.cost_micros / 1e6) if hasattr(row.metrics, 'cost_micros') else 'NA',  # Rounding off cost to nearest integer
+                "In-app-actions": row.metrics.biddable_app_post_install_conversions if hasattr(row.metrics, 'biddable_app_post_install_conversions') else 'NA',
+            })
+    
+    return pd.DataFrame(data)
+
+def get_UAC_data_network_level(client, customer_id, start_date, end_date):
+    ga_service = client.get_service("GoogleAdsService", version="v17")
+
+    # Constructing the query
+    query = f"""
+    SELECT
+        campaign.name, 
+        ad_group.name,
+        segments.ad_network_type,
+        metrics.cost_micros,
+        campaign.status
+    FROM 
+    ad_group
+    WHERE 
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED'
+    """
+
+    response = ga_service.search_stream(customer_id=customer_id, query=query)
+    
+    data = []
+    for batch in response:
+        for row in batch.results:
+            data.append({
+                "Campaign Name": row.campaign.name if hasattr(row.campaign, 'name') else 'NA',
+                "Ad Group": row.ad_group.name if hasattr(row.ad_group, 'name') else 'NA',
+                "Ad Network Type": row.segments.ad_network_type.name if hasattr(row.segments, 'ad_network_type') else 'NA',
+                "Cost_t": round(row.metrics.cost_micros / 1e6) if hasattr(row.metrics, 'cost_micros') else 'NA',  # Converting micros to standard currency unit
+            })
+    
+    return pd.DataFrame(data)
