@@ -114,7 +114,7 @@ if st.session_state.fetch_data:
         def KW_data_analysis():
             st.session_state.kw_data = get_kw_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
             st.session_state.kw_data['Labels'] = st.session_state.kw_data['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
-            st.dataframe(st.session_state.kw_data)
+            #st.dataframe(st.session_state.kw_data)
 
             # Filter-out data according to labels
             if segment == "2W":
@@ -231,9 +231,6 @@ if st.session_state.fetch_data:
         # Ads data analysis
         def ads_data_analysis():
             st.session_state.ad_data = get_ad_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
-            
-            #map ad strength to ad strength name
-            st.session_state.ad_data["Ad Strength"] = st.session_state.ad_data["Ad Strength"].map(st.session_state.ad_strength_map)
 
             st.session_state.ad_data['Labels'] = st.session_state.ad_data['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
 
@@ -250,6 +247,9 @@ if st.session_state.fetch_data:
                 st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21995300594")]
             elif segment == "Courier":
                 st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21977123539")]
+
+            #map ad strength to ad strength name
+            st.session_state.ad_data["Ad Strength"] = st.session_state.ad_data["Ad Strength"].map(st.session_state.ad_strength_map)
 
             # Extract texts from Headlines and Descriptions
             st.session_state.ad_data['Headlines'] = st.session_state.ad_data['Headlines'].fillna('').astype(str)
@@ -292,8 +292,24 @@ if st.session_state.fetch_data:
         # P-max data analysis
         def pmax_data_analysis():
             st.session_state.pmax_raw = get_pmax_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
-            st.subheader("P-max Data")
+            st.session_state.uac_raw['Labels'] = st.session_state.uac_raw['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
             #st.dataframe(st.session_state.pmax_raw)
+
+            # Filter-out data according to labels
+            if segment == "2W":
+                st.session_state.pmax_raw = st.session_state.pmax_raw[st.session_state.pmax_raw["Labels"].str.contains("customers/9680382253/labels/21974198167")]
+            elif segment == "Spot":
+                st.session_state.pmax_raw = st.session_state.pmax_raw[st.session_state.pmax_raw["Labels"].str.contains("customers/9680382253/labels/21995256971")]
+            elif segment == "Bottom_7":
+                st.session_state.pmax_raw = st.session_state.pmax_raw[st.session_state.pmax_raw["Labels"].str.contains("customers/9680382253/labels/21977071705")]
+            elif segment == "P&M":
+                st.session_state.pmax_raw = st.session_state.pmax_raw[st.session_state.pmax_raw["Labels"].str.contains("customers/9680382253/labels/21977073160")]
+            elif segment == "Pure Brand":
+                st.session_state.pmax_raw = st.session_state.pmax_raw[st.session_state.pmax_raw["Labels"].str.contains("customers/9680382253/labels/21995300594")]
+            elif segment == "Courier":
+                st.session_state.pmax_raw = st.session_state.pmax_raw[st.session_state.pmax_raw["Labels"].str.contains("customers/9680382253/labels/21977123539")]    
+
+            st.subheader("P-max Data")
             if st.session_state.pmax_raw is not None:
                 st.session_state.pmax_zero_cost = st.session_state.pmax_raw[st.session_state.pmax_raw["Cost"] == 0]
                 st.session_state.pmax_zero_cost = st.session_state.pmax_zero_cost[["Product Item ID", "Cost"]]
@@ -309,7 +325,10 @@ if st.session_state.fetch_data:
 
         def uac_data_analysis():
             st.session_state.uac_raw = get_UAC_data_asset_level(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
+            st.session_state.uac_raw['Labels'] = st.session_state.uac_raw['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
+            #st.dataframe(st.session_state.uac_raw)
 
+            # Filter-out data according to labels
             if segment == "2W":
                 st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21974198167")]
             elif segment == "Spot":
@@ -325,7 +344,6 @@ if st.session_state.fetch_data:
 
             st.subheader("UAC Data")
             st.session_state.uac_raw["Cost / In-app"] = (st.session_state.uac_raw["Cost"] / st.session_state.uac_raw["In-app-actions"]).replace([np.inf, -np.inf], 0).fillna(0).round()
-            #st.dataframe(st.session_state.uac_raw)
 
             # Group the cost by uniques in Asset type & Ad Network Type
             st.session_state.uac_network_level = st.session_state.uac_raw.groupby(['Ad Network Type']).agg({
@@ -399,6 +417,23 @@ if st.session_state.fetch_data:
 
             # UAC total spends
             st.session_state.total_spends_data = get_UAC_data_network_level(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
+            st.session_state.total_spends_data['Labels'] = st.session_state.total_spends_data['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
+            #st.dataframe(st.session_state.total_spends_data)
+
+            # Filter-out data according to labels
+            if segment == "2W":
+                st.session_state.total_spends_data = st.session_state.total_spends_data[st.session_state.total_spends_data["Labels"].str.contains("customers/9680382253/labels/21974198167")]
+            elif segment == "Spot":
+                st.session_state.total_spends_data = st.session_state.total_spends_data[st.session_state.total_spends_data["Labels"].str.contains("customers/9680382253/labels/21995256971")]
+            elif segment == "Bottom_7":
+                st.session_state.total_spends_data = st.session_state.total_spends_data[st.session_state.total_spends_data["Labels"].str.contains("customers/9680382253/labels/21977071705")]
+            elif segment == "P&M":
+                st.session_state.total_spends_data = st.session_state.total_spends_data[st.session_state.total_spends_data["Labels"].str.contains("customers/9680382253/labels/21977073160")]
+            elif segment == "Pure Brand":
+                st.session_state.total_spends_data = st.session_state.total_spends_data[st.session_state.total_spends_data["Labels"].str.contains("customers/9680382253/labels/21995300594")]
+            elif segment == "Courier":
+                st.session_state.total_spends_data = st.session_state.total_spends_data[st.session_state.total_spends_data["Labels"].str.contains("customers/9680382253/labels/21977123539")]
+                
             st.session_state.total_spends_data = st.session_state.total_spends_data.groupby(["Ad Network Type", "Ad Group", "Campaign Name"]).agg({"Cost_t": np.sum}).reset_index()
             st.session_state.spends_on_assets = st.session_state.uac_raw.groupby(["Ad Network Type", "Ad Group", "Campaign Name"]).agg({"Cost": np.sum}).reset_index()
 
