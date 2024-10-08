@@ -172,7 +172,8 @@ def get_pmax_data(client, customer_id, start_date, end_date):
         metrics.cost_micros,
         metrics.impressions,
         campaign.advertising_channel_type,
-        campaign.advertising_channel_sub_type
+        campaign.advertising_channel_sub_type,
+        campaign.labels
     FROM
         asset_group_product_group_view
     WHERE
@@ -193,6 +194,7 @@ def get_pmax_data(client, customer_id, start_date, end_date):
                 "Impressions": row.metrics.impressions if hasattr(row.metrics, 'impressions') else 'NA',
                 "Advertising Channel Type": row.campaign.advertising_channel_type.name if hasattr(row.campaign, 'advertising_channel_type') else 'NA',
                 "Advertising Channel Sub Type": row.campaign.advertising_channel_sub_type.name if hasattr(row.campaign, 'advertising_channel_sub_type') else 'NA',
+                "Labels": row.campaign.labels if hasattr(row.campaign, 'labels') else 'NA',
             })
     
     return pd.DataFrame(data)
@@ -402,7 +404,8 @@ def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
         segments.ad_network_type,
         metrics.biddable_app_post_install_conversions,
         metrics.impressions,
-        metrics.cost_micros
+        metrics.cost_micros,
+        campaign.labels
     FROM 
     ad_group_ad_asset_view
     WHERE 
@@ -413,7 +416,6 @@ def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
     
     data = []
     for batch in response:
-        print(f"Batch: {batch}")
         for row in batch.results:
             data.append({
                 "Campaign Name": row.campaign.name if hasattr(row.campaign, 'name') else 'NA',
@@ -426,6 +428,7 @@ def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
                 "Impressions": row.metrics.impressions if hasattr(row.metrics, 'impressions') else 'NA',
                 "Cost": round(row.metrics.cost_micros / 1e6) if hasattr(row.metrics, 'cost_micros') else 'NA',  # Rounding off cost to nearest integer
                 "In-app-actions": row.metrics.biddable_app_post_install_conversions if hasattr(row.metrics, 'biddable_app_post_install_conversions') else 'NA',
+                "Labels": row.campaign.labels if hasattr(row.campaign, 'labels') else 'NA',
             })
     
     return pd.DataFrame(data)
@@ -440,7 +443,8 @@ def get_UAC_data_network_level(client, customer_id, start_date, end_date):
         ad_group.name,
         segments.ad_network_type,
         metrics.cost_micros,
-        campaign.status
+        campaign.status,
+        campaign.labels
     FROM 
     ad_group
     WHERE 
@@ -457,6 +461,7 @@ def get_UAC_data_network_level(client, customer_id, start_date, end_date):
                 "Ad Group": row.ad_group.name if hasattr(row.ad_group, 'name') else 'NA',
                 "Ad Network Type": row.segments.ad_network_type.name if hasattr(row.segments, 'ad_network_type') else 'NA',
                 "Cost_t": round(row.metrics.cost_micros / 1e6) if hasattr(row.metrics, 'cost_micros') else 'NA',  # Converting micros to standard currency unit
+                "Labels": row.campaign.labels if hasattr(row.campaign, 'labels') else 'NA',
             })
     
     return pd.DataFrame(data)
