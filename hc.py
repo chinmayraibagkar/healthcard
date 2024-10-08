@@ -58,12 +58,24 @@ st.session_state.channel_type_map = {
     12: "DISCOVERY"
 }
 
+st.session_state.ad_strength_map = {
+    7: "Excellent",
+    2: "Pending",
+    4: "Poor",
+    5: "Average",
+    6: "Good"
+}
+
 st.header("Healthcard")
 
 # Create an account selector
 selected_accounts = st.multiselect("Select Account Names", list(st.session_state.Account_Name.keys()))
 date_range = st.date_input("Select Date Range", [pd.to_datetime("2024-06-01"), pd.to_datetime("2024-06-30")])
 campaign_types_present = st.multiselect("Select Present Campaign Types", ["Search", "Pmax", "UAC"])
+if 'Porter India' in selected_accounts:
+    segment = st.selectbox("Select Segment", ["Bottom_7", "Spot", "P&M", "2W", "Pure Brand", "Courier"])
+else:
+    segment = None
 
 st.sidebar.header("Google Ads Credentials")
 st.sidebar.write("Upload your Google Ads credentials file here:")
@@ -101,14 +113,29 @@ if st.session_state.fetch_data:
     for account in selected_accounts:
         def KW_data_analysis():
             st.session_state.kw_data = get_kw_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
-            #st.dataframe(st.session_state.kw_data)
+            st.session_state.kw_data['Labels'] = st.session_state.kw_data['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
+            st.dataframe(st.session_state.kw_data)
+
+            # Filter-out data according to labels
+            if segment == "2W":
+                st.session_state.kw_data = st.session_state.kw_data[st.session_state.kw_data["Labels"].str.contains("customers/9680382253/labels/21974198167")]
+            elif segment == "Spot":
+                st.session_state.kw_data = st.session_state.kw_data[st.session_state.kw_data["Labels"].str.contains("customers/9680382253/labels/21995256971")]
+            elif segment == "Bottom_7":
+                st.session_state.kw_data = st.session_state.kw_data[st.session_state.kw_data["Labels"].str.contains("customers/9680382253/labels/21977071705")]
+            elif segment == "P&M":
+                st.session_state.kw_data = st.session_state.kw_data[st.session_state.kw_data["Labels"].str.contains("customers/9680382253/labels/21977073160")]
+            elif segment == "Pure Brand":
+                st.session_state.kw_data = st.session_state.kw_data[st.session_state.kw_data["Labels"].str.contains("customers/9680382253/labels/21995300594")]
+            elif segment == "Courier":
+                st.session_state.kw_data = st.session_state.kw_data[st.session_state.kw_data["Labels"].str.contains("customers/9680382253/labels/21977123539")]
 
             #get a list of duplicate KWs which have same keyword text and match type, but different ad group. Get campain name, ad group name, keyword text, match type.
-            # st.session_state.duplicate_kw = st.session_state.kw_data[st.session_state.kw_data.duplicated(subset=["Keyword Text", "Match Type"], keep=False)]
-            # st.session_state.duplicate_kw = st.session_state.duplicate_kw[["Campaign Name", "Ad Group", "Keyword Text", "Match Type"]]
-            # st.session_state.duplicate_kw.reset_index(drop=True, inplace=True)
-            # st.markdown(''':blue-background[**Duplicate Keywords**]''')
-            # st.dataframe(st.session_state.duplicate_kw)
+            st.session_state.duplicate_kw = st.session_state.kw_data[st.session_state.kw_data.duplicated(subset=["Keyword Text", "Match Type", "Campaign Name"], keep=False)]
+            st.session_state.duplicate_kw = st.session_state.duplicate_kw[["Campaign Name", "Ad Group", "Keyword Text", "Match Type"]]
+            st.session_state.duplicate_kw.reset_index(drop=True, inplace=True)
+            st.markdown(''':blue-background[**Duplicate Keywords**]''')
+            st.dataframe(st.session_state.duplicate_kw)
             
             # Calculate weighted average of quality score for each ad group
             st.session_state.kw_data["Impressions"] = st.session_state.kw_data["Impressions"].astype(int)
@@ -116,14 +143,35 @@ if st.session_state.fetch_data:
             st.session_state.weighted_avg_quality_score = (st.session_state.kw_data.loc[st.session_state.kw_data["Quality Score"] != 0, "Impressions"] * st.session_state.kw_data.loc[st.session_state.kw_data["Quality Score"] != 0, "Quality Score"]).sum() / st.session_state.kw_data.loc[st.session_state.kw_data["Quality Score"] != 0, "Impressions"].sum()
             st.session_state.weighted_avg_quality_score = st.session_state.weighted_avg_quality_score.round(2)
 
-            if st.session_state.weighted_avg_quality_score < 6:
-                bg = ":red-background"
-            elif st.session_state.weighted_avg_quality_score < 8 and st.session_state.weighted_avg_quality_score >= 6:
-                bg = ":orange-background"
-            else:
-                bg = ":green-background"
+            bg = ":orange-background"
+            st.markdown(f":blue-background[**Weighted Average Quality Score of Account**] : {bg}[{st.session_state.weighted_avg_quality_score}]")
 
-            st.markdown(f":blue-background[**Weighted Average Quality Score**] : {bg}[{st.session_state.weighted_avg_quality_score}]")
+            # Weighted average quality scores for Campaigns containing Brand, Generic, and Competitor in campaign name
+            st.session_state.brand_kw_data = st.session_state.kw_data[st.session_state.kw_data["Campaign Name"].str.contains("Brand", case=False)]
+            st.session_state.generic_kw_data = st.session_state.kw_data[st.session_state.kw_data["Campaign Name"].str.contains("Generic", case=False)]
+            st.session_state.competitor_kw_data = st.session_state.kw_data[st.session_state.kw_data["Campaign Name"].str.contains("Competitor", case=False)]
+
+            st.session_state.brand_weighted_avg_quality_score = (st.session_state.brand_kw_data.loc[st.session_state.brand_kw_data["Quality Score"] != 0, "Impressions"] * st.session_state.brand_kw_data.loc[st.session_state.brand_kw_data["Quality Score"] != 0, "Quality Score"]).sum() / st.session_state.brand_kw_data.loc[st.session_state.brand_kw_data["Quality Score"] != 0, "Impressions"].sum()
+            st.session_state.brand_weighted_avg_quality_score = st.session_state.brand_weighted_avg_quality_score.round(2)
+
+            st.session_state.generic_weighted_avg_quality_score = (st.session_state.generic_kw_data.loc[st.session_state.generic_kw_data["Quality Score"] != 0, "Impressions"] * st.session_state.generic_kw_data.loc[st.session_state.generic_kw_data["Quality Score"] != 0, "Quality Score"]).sum() / st.session_state.generic_kw_data.loc[st.session_state.generic_kw_data["Quality Score"] != 0, "Impressions"].sum()
+            st.session_state.generic_weighted_avg_quality_score = st.session_state.generic_weighted_avg_quality_score.round(2)
+
+            st.session_state.competitor_weighted_avg_quality_score = (st.session_state.competitor_kw_data.loc[st.session_state.competitor_kw_data["Quality Score"] != 0, "Impressions"] * st.session_state.competitor_kw_data.loc[st.session_state.competitor_kw_data["Quality Score"] != 0, "Quality Score"]).sum() / st.session_state.competitor_kw_data.loc[st.session_state.competitor_kw_data["Quality Score"] != 0, "Impressions"].sum()
+            st.session_state.competitor_weighted_avg_quality_score = st.session_state.competitor_weighted_avg_quality_score.round(2)
+
+            st.markdown(f":blue-background[**Weighted Average Quality Score for Brand Campaigns**] : {bg}[{st.session_state.brand_weighted_avg_quality_score}]")
+            st.markdown(f":blue-background[**Weighted Average Quality Score for Generic Campaigns**] : {bg}[{st.session_state.generic_weighted_avg_quality_score}]")
+            st.markdown(f":blue-background[**Weighted Average Quality Score for Competitor Campaigns**] : {bg}[{st.session_state.competitor_weighted_avg_quality_score}]")
+
+            # Weighted average quality score for each campaign
+            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.kw_data.groupby("Campaign Name").apply(lambda x: (x["Impressions"] * x["Quality Score"]).sum() / x["Impressions"].sum()).reset_index()
+            st.session_state.campaign_level_weighted_avg_quality_score.columns = ["Campaign Name", "Weighted Average Quality Score"]
+            st.session_state.campaign_level_weighted_avg_quality_score["Weighted Average Quality Score"] = st.session_state.campaign_level_weighted_avg_quality_score["Weighted Average Quality Score"].round(2)
+            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score.sort_values(by="Weighted Average Quality Score", ascending=True)
+            st.session_state.campaign_level_weighted_avg_quality_score.reset_index(drop=True, inplace=True)
+            st.markdown(''':blue-background[**Weighted Average Quality Score for Campaigns**]''')
+            st.dataframe(st.session_state.campaign_level_weighted_avg_quality_score) 
 
             # Days difference between start and end date
             days_diff = int((pd.to_datetime(st.session_state.end_date) - pd.to_datetime(st.session_state.start_date)).days)
@@ -183,6 +231,27 @@ if st.session_state.fetch_data:
         # Ads data analysis
         def ads_data_analysis():
             st.session_state.ad_data = get_ad_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
+            
+            #map ad strength to ad strength name
+            st.session_state.ad_data["Ad Strength"] = st.session_state.ad_data["Ad Strength"].map(st.session_state.ad_strength_map)
+
+            st.session_state.ad_data['Labels'] = st.session_state.ad_data['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
+
+            # Filter-out data accorfing to labels
+            if segment == "2W":
+                st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21974198167")]
+            elif segment == "Spot":
+                st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21995256971")]
+            elif segment == "Bottom_7":
+                st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21977071705")]
+            elif segment == "P&M":
+                st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21977073160")]
+            elif segment == "Pure Brand":
+                st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21995300594")]
+            elif segment == "Courier":
+                st.session_state.ad_data = st.session_state.ad_data[st.session_state.ad_data["Labels"].str.contains("customers/9680382253/labels/21977123539")]
+
+            # Extract texts from Headlines and Descriptions
             st.session_state.ad_data['Headlines'] = st.session_state.ad_data['Headlines'].fillna('').astype(str)
             st.session_state.ad_data['Descriptions'] = st.session_state.ad_data['Descriptions'].apply(lambda x: ' '.join(x) if isinstance(x, list) else str(x))
             st.session_state.ad_data['Headlines'] = st.session_state.ad_data['Headlines'].apply(extract_texts)
@@ -191,23 +260,40 @@ if st.session_state.fetch_data:
             # Unique ads per ad group
             st.session_state.ad_data["Ad"] = st.session_state.ad_data["Headlines"] + st.session_state.ad_data["Descriptions"]
             st.session_state.ad_data["Ad"] = st.session_state.ad_data["Ad"].astype(str)
-            st.session_state.ad_data_unique = st.session_state.ad_data.groupby(["Campaign","Ad Group"])["Ad"].nunique()
+            st.session_state.ad_data_unique = st.session_state.ad_data.groupby(["Ad Strength","Campaign","Ad Group"])["Ad"].nunique()
             ad_data_unique_mean = st.session_state.ad_data.groupby(["Campaign","Ad Group"])["Ad"].nunique().mean().round(3)
 
             total_unique_ads = st.session_state.ad_data["Ad"].nunique()
             st.markdown(''':blue-background[**Total Unique Ads in the Account**]''')
             st.write("(Combination of Headlines and Description has been considered here, as a unique ad.)")
-            st.write(total_unique_ads)
+            st.write(total_unique_ads , " (No. of Ad Groups" + " : " , st.session_state.ad_data["Ad Group"].nunique(), ")")
 
             st.markdown(''':blue-background[**Unique Ads per Ad Group**]''')
             st.write("(Combination of Headlines and Description has been considered here, as a unique ad.)")
             st.write(ad_data_unique_mean)
-            st.dataframe(st.session_state.ad_data_unique) 
+            #st.session_state.ad_data_unique = st.session_state.ad_data_unique[["Campaign", "Ad Group", "Ad Strength", "Ad"]].reset_index()
+            st.dataframe(st.session_state.ad_data_unique)
+
+            # ads with zero clicks
+            st.session_state.ad_data_zero_clicks = st.session_state.ad_data[st.session_state.ad_data["Clicks"] == 0]
+            st.download_button(           
+                    label="Download Ads with ZERO Clicks",
+                    data=st.session_state.ad_data_zero_clicks.to_csv(index=False),
+                    file_name='Ads_with_zero_clicks.csv',
+                    mime='text/csv',
+                )
+            
+            # Count of ads according to Ad Strength
+            st.markdown(''':blue-background[**Count of Ads according to Ad Strength**]''')
+            st.session_state.ad_data["Ad Strength"] = st.session_state.ad_data["Ad Strength"].fillna("No Strength")
+            st.session_state.ad_data_ad_strength = st.session_state.ad_data.groupby("Ad Strength").agg({"Ad": "count"}).reset_index()
+            st.dataframe(st.session_state.ad_data_ad_strength)
 
         # P-max data analysis
         def pmax_data_analysis():
             st.session_state.pmax_raw = get_pmax_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
-            st.dataframe(st.session_state.pmax_raw)
+            st.subheader("P-max Data")
+            #st.dataframe(st.session_state.pmax_raw)
             if st.session_state.pmax_raw is not None:
                 st.session_state.pmax_zero_cost = st.session_state.pmax_raw[st.session_state.pmax_raw["Cost"] == 0]
                 st.session_state.pmax_zero_cost = st.session_state.pmax_zero_cost[["Product Item ID", "Cost"]]
@@ -223,9 +309,23 @@ if st.session_state.fetch_data:
 
         def uac_data_analysis():
             st.session_state.uac_raw = get_UAC_data_asset_level(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
+
+            if segment == "2W":
+                st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21974198167")]
+            elif segment == "Spot":
+                st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21995256971")]
+            elif segment == "Bottom_7":
+                st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21977071705")]
+            elif segment == "P&M":
+                st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21977073160")]
+            elif segment == "Pure Brand":
+                st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21995300594")]
+            elif segment == "Courier":
+                st.session_state.uac_raw = st.session_state.uac_raw[st.session_state.uac_raw["Labels"].str.contains("customers/9680382253/labels/21977123539")]
+
             st.subheader("UAC Data")
             st.session_state.uac_raw["Cost / In-app"] = (st.session_state.uac_raw["Cost"] / st.session_state.uac_raw["In-app-actions"]).replace([np.inf, -np.inf], 0).fillna(0).round()
-            st.dataframe(st.session_state.uac_raw)
+            #st.dataframe(st.session_state.uac_raw)
 
             # Group the cost by uniques in Asset type & Ad Network Type
             st.session_state.uac_network_level = st.session_state.uac_raw.groupby(['Ad Network Type']).agg({
