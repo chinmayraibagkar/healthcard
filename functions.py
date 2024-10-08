@@ -74,7 +74,8 @@ def get_kw_data(client, customer_id, start_date, end_date):
         metrics.cost_micros,
         metrics.historical_quality_score,
         ad_group_criterion.status,
-        ad_group_criterion.location.geo_target_constant
+        ad_group_criterion.location.geo_target_constant,
+        campaign.labels
     FROM
         keyword_view
     WHERE
@@ -96,7 +97,7 @@ def get_kw_data(client, customer_id, start_date, end_date):
                 "Cost": row.metrics.cost_micros / 1e6 if hasattr(row.metrics, 'cost_micros') else 'NA', # Converting micros to standard currency unit
                 "Quality Score": row.metrics.historical_quality_score if hasattr(row.metrics, 'historical_quality_score') else 'NA',
                 "Status": row.ad_group_criterion.status if hasattr(row.ad_group_criterion, 'status') else 'NA',
-                "Location": row.ad_group_criterion.location.geo_target_constant if hasattr(row.ad_group_criterion.location, 'geo_target_constant') else 'NA',
+                "Labels": row.campaign.labels if hasattr(row.campaign, 'labels') else 'NA',
             })
     
     return pd.DataFrame(data)
@@ -114,12 +115,16 @@ def get_ad_data(client, customer_id, start_date, end_date):
         ad_group_ad.ad.responsive_search_ad.headlines,
         ad_group_ad.ad.responsive_search_ad.descriptions,
         metrics.impressions,
+        metrics.clicks,
         metrics.cost_micros,
-        campaign.advertising_channel_type
+        campaign.advertising_channel_type,
+        campaign.labels,
+        ad_group_ad.ad_strength
     FROM
         ad_group_ad
     WHERE
-        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' AND metrics.impressions > 0 AND campaign.advertising_channel_type = 'SEARCH'
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND ad_group.status = 'ENABLED' 
+        AND ad_group_ad.status = 'ENABLED' AND campaign.advertising_channel_type = 'SEARCH'
     """
 
     response = ga_service.search_stream(customer_id=customer_id, query=query)
@@ -133,8 +138,11 @@ def get_ad_data(client, customer_id, start_date, end_date):
                 "Headlines": row.ad_group_ad.ad.responsive_search_ad.headlines if hasattr(row.ad_group_ad.ad.responsive_search_ad, 'headlines') else 'NA',
                 "Descriptions": row.ad_group_ad.ad.responsive_search_ad.descriptions if hasattr(row.ad_group_ad.ad.responsive_search_ad, 'descriptions') else 'NA',
                 "Impressions": row.metrics.impressions if hasattr(row.metrics, 'impressions') else 'NA',
+                "Clicks": row.metrics.clicks if hasattr(row.metrics, 'clicks') else 'NA',
                 "Cost": row.metrics.cost_micros / 1e6 if hasattr(row.metrics, 'cost_micros') else 'NA',  # Converting micros to standard currency unit
                 "Campaign Type": row.campaign.advertising_channel_type if hasattr(row.campaign, 'advertising_channel_type') else 'NA',
+                "Labels": row.campaign.labels if hasattr(row.campaign, 'labels') else 'NA',
+                "Ad Strength": row.ad_group_ad.ad_strength if hasattr(row.ad_group_ad, 'ad_strength') else 'NA',
             })
 
     # map advertising channel type
