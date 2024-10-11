@@ -151,15 +151,19 @@ def get_ad_data(client, customer_id, start_date, end_date):
     return pd.DataFrame(data)
 
 
-def extract_texts(data):
+def extract_texts_and_count(data):
     # Regular expression to find all text entries
     pattern = r'text:\s*"([^"]+)"'
-    # Find all matches and join them with a space
+    # Find all matches
     texts = re.findall(pattern, data)
-    return ' '.join(texts)
+    # Join the extracted texts into a single string
+    extracted_texts = ' '.join(texts)
+    # Count the number of headlines or descriptions
+    count = len(texts)
+    return extracted_texts, count
 
 
-def get_pmax_data(client, customer_id, start_date, end_date):
+def get_pmax_products_data(client, customer_id, start_date, end_date):
     ga_service = client.get_service("GoogleAdsService", version="v17")
 
     # Constructing the query
@@ -173,6 +177,45 @@ def get_pmax_data(client, customer_id, start_date, end_date):
         metrics.impressions,
         campaign.advertising_channel_type,
         campaign.advertising_channel_sub_type,
+        campaign.labels
+    FROM
+        asset_group_product_group_view
+    WHERE
+        segments.date BETWEEN '{start_date}' AND '{end_date}' AND campaign.status = 'ENABLED' AND campaign.advertising_channel_type = 'PERFORMANCE_MAX'
+    """
+
+    response = ga_service.search_stream(customer_id=customer_id, query=query)
+    
+    data = []
+    for batch in response:
+        for row in batch.results:
+            data.append({
+                "Campaign Name": row.campaign.name if hasattr(row.campaign, 'name') else 'NA',
+                "Asset Group Name": row.asset_group.name if hasattr(row.asset_group, 'name') else 'NA',
+                "Ad Network Type": row.segments.ad_network_type.name if hasattr(row.segments, 'ad_network_type') else 'NA',
+                "Product Item ID": row.asset_group_listing_group_filter.case_value.product_item_id.value if hasattr(row.asset_group_listing_group_filter.case_value.product_item_id, 'value') else 'NA',
+                "Cost": row.metrics.cost_micros / 1e6 if hasattr(row.metrics, 'cost_micros') else 'NA',  # Converting micros to standard currency unit
+                "Impressions": row.metrics.impressions if hasattr(row.metrics, 'impressions') else 'NA',
+                "Advertising Channel Type": row.campaign.advertising_channel_type.name if hasattr(row.campaign, 'advertising_channel_type') else 'NA',
+                "Advertising Channel Sub Type": row.campaign.advertising_channel_sub_type.name if hasattr(row.campaign, 'advertising_channel_sub_type') else 'NA',
+                "Labels": row.campaign.labels if hasattr(row.campaign, 'labels') else 'NA',
+            })
+    
+    return pd.DataFrame(data)
+
+
+def get_pmax_assets_data(client, customer_id, start_date, end_date):
+    ga_service = client.get_service("GoogleAdsService", version="v17")
+
+    # Constructing the query
+    query = f"""
+    SELECT
+        campaign.name,
+        asset_group.name,
+        asset.name,
+        asset_group_asset.asset,
+        asset_group_asset.performance_label,
+        asset_group_asset.primary_status
         campaign.labels
     FROM
         asset_group_product_group_view
