@@ -72,6 +72,10 @@ st.header("Healthcard")
 selected_accounts = st.multiselect("Select Account Names", list(st.session_state.Account_Name.keys()))
 date_range = st.date_input("Select Date Range", [pd.to_datetime("2024-06-01"), pd.to_datetime("2024-06-30")])
 campaign_types_present = st.multiselect("Select Present Campaign Types", ["Search", "Pmax", "UAC"])
+
+if 'Pmax' in campaign_types_present:
+    isfeed = st.checkbox("Does Pmax Campaigns have Feed ?")
+
 if 'Porter India' in selected_accounts:
     segment = st.selectbox("Select Segment", ["Bottom_7", "Spot", "P&M", "2W", "Pure Brand", "Courier"])
 else:
@@ -250,17 +254,24 @@ if st.session_state.fetch_data:
 
             #map ad strength to ad strength name
             st.session_state.ad_data["Ad Strength"] = st.session_state.ad_data["Ad Strength"].map(st.session_state.ad_strength_map)
+            
 
             # Extract texts from Headlines and Descriptions
             st.session_state.ad_data['Headlines'] = st.session_state.ad_data['Headlines'].fillna('').astype(str)
             st.session_state.ad_data['Descriptions'] = st.session_state.ad_data['Descriptions'].apply(lambda x: ' '.join(x) if isinstance(x, list) else str(x))
-            st.session_state.ad_data['Headlines'] = st.session_state.ad_data['Headlines'].apply(extract_texts)
-            st.session_state.ad_data['Descriptions'] = st.session_state.ad_data['Descriptions'].apply(extract_texts)
+
+            # Apply extraction and count to 'Headlines' and 'Descriptions'
+            st.session_state.ad_data['Headlines_Extracted'], st.session_state.ad_data['Headline_Count'] = zip(
+                *st.session_state.ad_data['Headlines'].apply(extract_texts_and_count))
+            
+            st.session_state.ad_data['Descriptions_Extracted'], st.session_state.ad_data['Description_Count'] = zip(
+                *st.session_state.ad_data['Descriptions'].apply(extract_texts_and_count))
+            st.dataframe(st.session_state.ad_data)
 
             # Unique ads per ad group
             st.session_state.ad_data["Ad"] = st.session_state.ad_data["Headlines"] + st.session_state.ad_data["Descriptions"]
             st.session_state.ad_data["Ad"] = st.session_state.ad_data["Ad"].astype(str)
-            st.session_state.ad_data_unique = st.session_state.ad_data.groupby(["Ad Strength","Campaign","Ad Group"])["Ad"].nunique()
+            st.session_state.ad_data_unique = st.session_state.ad_data.groupby(["Ad Strength","Campaign","Ad Group"]).agg({"Ad": "count"}).reset_index()
             ad_data_unique_mean = st.session_state.ad_data.groupby(["Campaign","Ad Group"])["Ad"].nunique().mean().round(3)
 
             total_unique_ads = st.session_state.ad_data["Ad"].nunique()
@@ -291,8 +302,9 @@ if st.session_state.fetch_data:
 
         # P-max data analysis
         def pmax_data_analysis():
-            st.session_state.pmax_raw = get_pmax_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
-            st.session_state.uac_raw['Labels'] = st.session_state.uac_raw['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
+            st.session_state.pmax_raw = get_pmax_products_data(client, st.session_state.Account_Name[account], st.session_state.start_date, st.session_state.end_date)
+            st.dataframe(st.session_state.pmax_raw)
+            st.session_state.pmax_raw['Labels'] = st.session_state.pmax_raw['Labels'].apply(lambda x: ', '.join(x) if isinstance(x, list) else str(x))
             #st.dataframe(st.session_state.pmax_raw)
 
             # Filter-out data according to labels
