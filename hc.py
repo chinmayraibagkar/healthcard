@@ -171,9 +171,10 @@ if st.session_state.fetch_data:
 
             # Weighted average quality score for each campaign
             st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.kw_data[st.session_state.kw_data["Quality Score"] != 0]
-            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.kw_data.groupby("Campaign Name").apply(lambda x: (x["Impressions"] * x["Quality Score"]).sum() / x["Impressions"].sum()).reset_index()
-            st.session_state.campaign_level_weighted_avg_quality_score.columns = ["Campaign Name", "Weighted Average Quality Score"]
-            st.session_state.campaign_level_weighted_avg_quality_score["Weighted Average Quality Score"] = st.session_state.campaign_level_weighted_avg_quality_score["Weighted Average Quality Score"].round(2)
+            st.session_state.campaign_level_weighted_avg_quality_score["weights"] = st.session_state.campaign_level_weighted_avg_quality_score["Impressions"] * st.session_state.campaign_level_weighted_avg_quality_score["Quality Score"]
+            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score.groupby("Campaign Name").agg({"weights": "sum", "Impressions": "sum"}).reset_index()
+            st.session_state.campaign_level_weighted_avg_quality_score["Weighted avg Quality Score"] = st.session_state.campaign_level_weighted_avg_quality_score["weights"] / st.session_state.campaign_level_weighted_avg_quality_score["Impressions"]
+            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score[["Campaign Name", "Weighted avg Quality Score"]]
             st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score.sort_values(by="Weighted Average Quality Score", ascending=True)
             st.session_state.campaign_level_weighted_avg_quality_score.reset_index(drop=True, inplace=True)
             st.markdown(''':blue-background[**Weighted Average Quality Score for Campaigns**]''')
