@@ -175,7 +175,7 @@ if st.session_state.fetch_data:
             st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score.groupby("Campaign Name").agg({"weights": "sum", "Impressions": "sum"}).reset_index()
             st.session_state.campaign_level_weighted_avg_quality_score["Weighted avg Quality Score"] = st.session_state.campaign_level_weighted_avg_quality_score["weights"] / st.session_state.campaign_level_weighted_avg_quality_score["Impressions"]
             st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score[["Campaign Name", "Weighted avg Quality Score"]]
-            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score.sort_values(by="Weighted Average Quality Score", ascending=True)
+            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.campaign_level_weighted_avg_quality_score.sort_values(by="Weighted Avg Quality Score", ascending=True)
             st.session_state.campaign_level_weighted_avg_quality_score.reset_index(drop=True, inplace=True)
             st.markdown(''':blue-background[**Weighted Average Quality Score for Campaigns**]''')
             st.dataframe(st.session_state.campaign_level_weighted_avg_quality_score) 
