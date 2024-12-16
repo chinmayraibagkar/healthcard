@@ -170,6 +170,7 @@ if st.session_state.fetch_data:
             st.markdown(f":blue-background[**Weighted Average Quality Score for Competitor Campaigns**] : {bg}[{st.session_state.competitor_weighted_avg_quality_score}]")
 
             # Weighted average quality score for each campaign
+            st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.kw_data[st.session_state.kw_data["Quality Score"] != 0]
             st.session_state.campaign_level_weighted_avg_quality_score = st.session_state.kw_data.groupby("Campaign Name").apply(lambda x: (x["Impressions"] * x["Quality Score"]).sum() / x["Impressions"].sum()).reset_index()
             st.session_state.campaign_level_weighted_avg_quality_score.columns = ["Campaign Name", "Weighted Average Quality Score"]
             st.session_state.campaign_level_weighted_avg_quality_score["Weighted Average Quality Score"] = st.session_state.campaign_level_weighted_avg_quality_score["Weighted Average Quality Score"].round(2)
