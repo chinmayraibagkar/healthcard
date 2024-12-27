@@ -40,7 +40,9 @@ st.session_state.Account_Name = {
     "Torrins Anthem": "3016502090",
     "Virtualness": "2519200735",
     "Yangpoo": "5658536021",
-    "Nat Habit": "1673268103"
+    "Nat Habit": "1673268103",
+    "Ventura Securities Ltd" : "7987787476",
+    "The Gift Studio" : "8997288831"
 }
 
 st.session_state.channel_type_map = {
