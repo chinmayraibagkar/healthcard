@@ -45,7 +45,11 @@ st.session_state.Account_Name = {
     "The Gift Studio" : "8997288831",
     "Unicreds" : "9508030797",
     "Novology" : "6617514754",
-    "Pepperfry Thanos" : "1624106391"
+    "Pepperfry Thanos" : "1624106391",
+    "SUGAR App remarketing" : "3945939629",
+    "Quench Botanics" : "3229964862",
+    "SUGAR Cosmetics" : "3884554559",
+    "SUGAR Cosmetics App" : "2099810292"
 }
 
 st.session_state.channel_type_map = {
