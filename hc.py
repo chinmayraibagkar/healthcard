@@ -49,7 +49,8 @@ st.session_state.Account_Name = {
     "SUGAR App remarketing" : "3945939629",
     "Quench Botanics" : "3229964862",
     "SUGAR Cosmetics" : "3884554559",
-    "SUGAR Cosmetics App" : "2099810292"
+    "SUGAR Cosmetics App" : "2099810292",
+    "Liquid IV" : "3093058191"
 }
 
 st.session_state.channel_type_map = {
