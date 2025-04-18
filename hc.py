@@ -51,7 +51,8 @@ st.session_state.Account_Name = {
     "SUGAR Cosmetics" : "3884554559",
     "SUGAR Cosmetics App" : "2099810292",
     "Liquid IV" : "3093058191",
-    "Indira IVF" : "6686671848"
+    "Indira IVF" : "6686671848",
+    "Kyzo" : "7142803086"
 }
 
 st.session_state.channel_type_map = {
