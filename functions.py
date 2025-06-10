@@ -61,7 +61,7 @@ def get_google_ads_client(mycred):
 
 # Function to fetch Google Ads data
 def get_kw_data(client, customer_id, start_date, end_date):
-    ga_service = client.get_service("GoogleAdsService", version="v17")
+    ga_service = client.get_service("GoogleAdsService", version="v20")
 
     # Constructing the query
     query = f"""
@@ -105,7 +105,7 @@ def get_kw_data(client, customer_id, start_date, end_date):
 
 # Function to fetch ad level data
 def get_ad_data(client, customer_id, start_date, end_date):
-    ga_service = client.get_service("GoogleAdsService", version="v17")
+    ga_service = client.get_service("GoogleAdsService", version="v20")
 
     # Constructing the query
     query = f"""
@@ -164,7 +164,7 @@ def extract_texts_and_count(data):
 
 
 def get_pmax_products_data(client, customer_id, start_date, end_date):
-    ga_service = client.get_service("GoogleAdsService", version="v17")
+    ga_service = client.get_service("GoogleAdsService", version="v20")
 
     # Constructing the query
     query = f"""
@@ -205,7 +205,7 @@ def get_pmax_products_data(client, customer_id, start_date, end_date):
 
 
 def get_pmax_assets_data(client, customer_id, start_date, end_date):
-    ga_service = client.get_service("GoogleAdsService", version="v17")
+    ga_service = client.get_service("GoogleAdsService", version="v20")
 
     # Constructing the query
     query = f"""
@@ -278,7 +278,7 @@ def serialize_changed_fields(changed_fields):
 
 def get_change_history(client, customer_id, start_date, end_date):
     """Gets specific details about changes in the given account within a date range."""
-    googleads_service = client.get_service("GoogleAdsService", version="v17")
+    googleads_service = client.get_service("GoogleAdsService", version="v20")
 
     # Ensure that start_date is within the last 30 days
     max_allowed_start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
@@ -433,7 +433,7 @@ def plot_pie_chart(data, column, title, names, color):
 
 
 def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
-    ga_service = client.get_service("GoogleAdsService", version="v17")
+    ga_service = client.get_service("GoogleAdsService", version="v20")
 
     # Constructing the query
     query = f"""
@@ -477,7 +477,7 @@ def get_UAC_data_asset_level(client, customer_id, start_date, end_date):
     return pd.DataFrame(data)
 
 def get_UAC_data_network_level(client, customer_id, start_date, end_date):
-    ga_service = client.get_service("GoogleAdsService", version="v17")
+    ga_service = client.get_service("GoogleAdsService", version="v20")
 
     # Constructing the query
     query = f"""
