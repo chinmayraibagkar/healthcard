@@ -52,7 +52,11 @@ st.session_state.Account_Name = {
     "SUGAR Cosmetics App" : "2099810292",
     "Liquid IV" : "3093058191",
     "Indira IVF" : "6686671848",
-    "Kyzo" : "7142803086"
+    "Kyzo" : "7142803086",
+    "Prodigy Finance US" : "3095551464",
+    "Nexxus" : "8048156184",
+    "Pukka Herbs" : "1460274044",
+    "Nova IVF East" : "3336626115"
 }
 
 st.session_state.channel_type_map = {
