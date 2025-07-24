@@ -56,7 +56,9 @@ st.session_state.Account_Name = {
     "Prodigy Finance US" : "3095551464",
     "Nexxus" : "8048156184",
     "Pukka Herbs" : "1460274044",
-    "Nova IVF East" : "3336626115"
+    "Nova IVF East" : "3336626115",
+    "Search - TrueMeds" : "4441254021",
+    "Search Truemeds Exp. New Aristok" : "5324747972"
 }
 
 st.session_state.channel_type_map = {
