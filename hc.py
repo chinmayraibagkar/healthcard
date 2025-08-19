@@ -89,7 +89,7 @@ st.header("Healthcard")
 
 # Create an account selector
 selected_accounts = st.multiselect("Select Account Names", list(st.session_state.Account_Name.keys()))
-date_range = st.date_input("Select Date Range", [pd.to_datetime("2024-06-01"), pd.to_datetime("2024-06-30")])
+date_range = st.date_input("Select Date Range", [pd.to_datetime("2025-07-01"), pd.to_datetime("2024-07-31")])
 campaign_types_present = st.multiselect("Select Present Campaign Types", ["Search", "Pmax", "UAC"])
 
 if 'Pmax' in campaign_types_present:
@@ -486,3 +486,4 @@ if st.session_state.fetch_data:
         pmax_data_analysis()
     if "UAC" in campaign_types_present:
         uac_data_analysis()
+
