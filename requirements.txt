@@ -4,6 +4,9 @@
 # Streamlit Framework
 streamlit>=1.28.0
 
+# Authentication (required for st.login/st.user)
+Authlib>=1.3.2
+
 # Google Ads API
 google-ads>=24.0.0
 
