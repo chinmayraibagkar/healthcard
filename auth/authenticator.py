@@ -12,9 +12,9 @@ class Authenticator:
         self.allowed_domains = st.secrets.get("auth", {}).get("allowed_domains", ["aristok.com"])
         self.allowed_emails = st.secrets.get("auth", {}).get("allowed_emails", [])
         
-        # Use credentials from google_ads section since they are likely the same project
-        self.client_id = st.secrets.get("google_ads", {}).get("client_id")
-        self.client_secret = st.secrets.get("google_ads", {}).get("client_secret")
+        # Use dedicated oauth section for authentication credentials
+        self.client_id = st.secrets.get("oauth", {}).get("client_id")
+        self.client_secret = st.secrets.get("oauth", {}).get("client_secret")
         self.redirect_uri = st.secrets.get("auth", {}).get("redirect_uri", "http://localhost:8501")
         
         # Convert string to list if needed
