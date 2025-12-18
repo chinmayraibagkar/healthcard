@@ -89,14 +89,62 @@ if 'selected_platform' not in st.session_state:
     st.session_state.selected_platform = 'meta'
 
 
-def main():
-    # Initialize authentication
-    from auth.authenticator import Authenticator
-    auth = Authenticator()
+def check_domain_access(email: str) -> bool:
+    """Check if user's email domain is allowed"""
+    allowed_domains = st.secrets.get("auth", {}).get("allowed_domains", ["aristok.com"])
+    allowed_emails = st.secrets.get("auth", {}).get("allowed_emails", [])
     
-    # Check authentication
-    if not auth.is_authenticated():
-        auth.show_login_page()
+    if not email:
+        return False
+    
+    # Check if email is explicitly allowed
+    if email.lower() in [e.lower() for e in allowed_emails]:
+        return True
+    
+    # Check domain
+    try:
+        domain = email.split('@')[-1].lower()
+        return domain in [d.lower() for d in allowed_domains]
+    except:
+        return False
+
+
+def show_login_page():
+    """Display styled login page"""
+    st.markdown("""
+        <div style="text-align: center; padding: 50px 20px;">
+            <h1 style="font-size: 3rem; font-weight: 700; background: linear-gradient(90deg, #1877F2, #4285f4, #34a853); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 20px;">
+                🏥 HealthCard Platform
+            </h1>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("""
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 40px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                <h2 style="text-align: center; margin-bottom: 30px;">Sign In</h2>
+                <p style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 20px;">
+                    Sign in with your corporate Google credentials.
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.button("🔐 Sign in with Google", on_click=st.login, use_container_width=True, type="primary")
+
+
+def main():
+    # Check if user is logged in using Streamlit's built-in auth
+    if not st.user.is_logged_in:
+        show_login_page()
+        st.stop()
+    
+    # Check domain access
+    user_email = st.user.get("email", "")
+    if not check_domain_access(user_email):
+        st.error(f"❌ Access denied for {user_email}")
+        st.warning("Your email domain is not authorized to use this application.")
+        st.button("🚪 Logout", on_click=st.logout)
         st.stop()
     
     # Header
@@ -120,32 +168,6 @@ def main():
     
     st.session_state.selected_platform = platform_options[selected_display]
     
-    # # Platform description with better theme compatibility
-    # if st.session_state.selected_platform == 'meta':
-    #     st.sidebar.info(
-    #         """
-    #         **Meta Ads HealthCard**
-            
-    #         Comprehensive audit for Facebook & Instagram ads:
-    #         - 🎯 Tracking validation
-    #         - 🎨 Creative analysis
-    #         - 📱 Ad format distribution
-    #         - 👥 Audience targeting
-    #         """
-    #     )
-    # else:
-    #     st.sidebar.info(
-    #         """
-    #         **Google Ads HealthCard**
-            
-    #         31 health checks across:
-    #         - 🌐 Universal (3 checks)
-    #         - 🔍 Search (10 checks)
-    #         - 🚀 Performance Max (14 checks)
-    #         - 📱 App Campaigns (4 checks)
-    #         """
-    #     )
-    
     st.sidebar.markdown("---")
     
     # Route to appropriate platform
@@ -168,8 +190,11 @@ def main():
         st.caption("Comprehensive health audit for your Google Ads campaigns")
         google_app.main()
 
-    # Show user info
-    auth.show_user_info()
+    # Show user info in sidebar
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"**👤 Logged in as:**")
+    st.sidebar.caption(user_email)
+    st.sidebar.button("🚪 Logout", on_click=st.logout, use_container_width=True)
     
     # # Footer
     # st.markdown("---")
