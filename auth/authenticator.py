@@ -120,7 +120,7 @@ class Authenticator:
                     
                     # Use HTML button with target="_self" to prevent opening in new tab
                     st.markdown(f"""
-                        <a href="{auth_url}" target="_blank" style="text-decoration: none;">
+                        <a href="{auth_url}" target="_self" style="text-decoration: none;">
                             <button style="
                                 width: 100%;
                                 background-color: #FF4B4B;
@@ -140,11 +140,6 @@ class Authenticator:
                                 🇬 Sign in with Google
                             </button>
                         </a>
-                        <div style="margin-top: 20px; padding: 10px; background: rgba(255,165,0,0.1); border-radius: 5px; border: 1px dashed orange; font-size: 0.8em; color: #aaa; text-align: left;">
-                             <strong>Debug Info:</strong><br>
-                             Redirect URI: <code>{self.redirect_uri}</code><br>
-                             Client ID: <code>{self.client_id[:10]}...</code>
-                        </div>
                     """, unsafe_allow_html=True)
                     
                 except Exception as e:
