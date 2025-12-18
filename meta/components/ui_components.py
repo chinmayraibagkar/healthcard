@@ -149,8 +149,6 @@ def render_check_grid(results: List[Dict[str, Any]], columns: int = 3):
         st.subheader("📊 Detailed Analysis")
         for result in failed_checks:
             render_detail_expander(result)
-    else:
-        st.success("🎉 All checks passed!")
 
 
 def render_detail_expander(result: Dict[str, Any]):
@@ -247,6 +245,12 @@ def render_sidebar_account_selector(accounts: List[Dict[str, Any]]):
         for acc in accounts
     }
     
+    # Create name lookup for auto-fill feature
+    account_names = {
+        acc['account_id']: acc['account_name']
+        for acc in accounts
+    }
+    
     selected_display = st.sidebar.selectbox(
         "Select Ad Account",
         options=list(account_options.keys()),
@@ -255,6 +259,19 @@ def render_sidebar_account_selector(accounts: List[Dict[str, Any]]):
     
     if selected_display:
         selected_id = account_options[selected_display]
+        # Store account name in session state for audiences explorer auto-fill
+        st.session_state.selected_meta_account_name = account_names.get(selected_id, "")
+        # Reset explorer values when account changes
+        if st.session_state.get('last_selected_account_id') != selected_id:
+            st.session_state.last_selected_account_id = selected_id
+            st.session_state.explorer_autofill_done = False
+            # Reset all explorer form values
+            st.session_state.explorer_business_desc = ""
+            st.session_state.explorer_industry = ""
+            st.session_state.explorer_target_audience = ""
+            st.session_state.explorer_results = []
+            st.session_state.explorer_search_query = ""
+            st.session_state.explorer_mode = None
         st.sidebar.success(f"**Account ID:** {selected_id}")
         return selected_id
     

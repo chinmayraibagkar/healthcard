@@ -81,7 +81,7 @@ def initialize_client():
     if st.session_state.client is None:
         try:
             st.session_state.client = get_google_ads_client()
-            st.success("✅ Connected to Google Ads API")
+            # API connected successfully
         except Exception as e:
             st.error(f"❌ Failed to connect to Google Ads API: {str(e)}")
             st.stop()

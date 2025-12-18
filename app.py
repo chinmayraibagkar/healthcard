@@ -133,19 +133,38 @@ def show_login_page():
         st.button("🔐 Sign in with Google", on_click=st.login, use_container_width=True, type="primary")
 
 
+def is_local_development() -> bool:
+    """Check if running in local development mode"""
+    try:
+        # Check if the redirect_uri contains localhost
+        redirect_uri = st.secrets.get("auth", {}).get("redirect_uri", "")
+        return "localhost" in redirect_uri or "127.0.0.1" in redirect_uri
+    except:
+        return True  # Default to dev mode if secrets not loaded
+
+
 def main():
-    # Check if user is logged in using Streamlit's built-in auth
-    if not st.user.is_logged_in:
-        show_login_page()
-        st.stop()
+    # Check if running in local development mode
+    dev_mode = is_local_development()
     
-    # Check domain access
-    user_email = st.user.get("email", "")
-    if not check_domain_access(user_email):
-        st.error(f"❌ Access denied for {user_email}")
-        st.warning("Your email domain is not authorized to use this application.")
-        st.button("🚪 Logout", on_click=st.logout)
-        st.stop()
+    if dev_mode:
+        # Skip auth for local development
+        user_email = "dev@aristok.com"
+        st.sidebar.info("🔧 Dev Mode: Auth bypassed")
+    else:
+        # Check if user is logged in using Streamlit's built-in auth
+        if not st.user.is_logged_in:
+            show_login_page()
+            st.stop()
+        
+        # Check domain access
+        user_email = st.user.get("email", "")
+        if not check_domain_access(user_email):
+            st.error(f"❌ Access denied for {user_email}")
+            st.warning("Your email domain is not authorized to use this application.")
+            st.button("🚪 Logout", on_click=st.logout)
+            st.stop()
+    
     
     # Header
     st.markdown('<h1 class="main-header">🏥 HealthCard Platform</h1>', unsafe_allow_html=True)
@@ -195,6 +214,11 @@ def main():
     st.sidebar.markdown(f"**👤 Logged in as:**")
     st.sidebar.caption(user_email)
     st.sidebar.button("🚪 Logout", on_click=st.logout, use_container_width=True)
+    
+    # AI Chatbot - temporarily disabled
+    # st.markdown("---")
+    # from shared.chatbot import render_chatbot_expander
+    # render_chatbot_expander()
     
     # # Footer
     # st.markdown("---")

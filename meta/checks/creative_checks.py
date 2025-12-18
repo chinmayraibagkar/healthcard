@@ -5,7 +5,7 @@ Validates creative assets including headlines, descriptions, and copy
 
 import pandas as pd
 from typing import Dict, List, Any
-from meta.utils.data_processing import is_empty_value, count_pipe_separated_values
+from meta.utils.data_processing import is_empty_value, count_pipe_separated_values, has_child_attachments, is_catalogue_ad, is_boosted_post_ad
 from meta.config.constants import THRESHOLDS
 
 
@@ -31,14 +31,49 @@ def check_headline_count(ads_df: pd.DataFrame) -> Dict[str, Any]:
             'percentage': 0
         }
     
-    # Calculate headline counts
-    ads_df['headline_count'] = ads_df['asset_feed_titles'].apply(count_pipe_separated_values)
+    # Exclude carousel, catalogue, and boosted post ads (they have dynamic/fixed creative)
+    is_carousel = ads_df.apply(has_child_attachments, axis=1)
+    is_catalogue = ads_df.apply(is_catalogue_ad, axis=1)
+    is_boosted = ads_df.apply(is_boosted_post_ad, axis=1)
+    standard_ads = ads_df[~is_carousel & ~is_catalogue & ~is_boosted].copy()
+    
+    if standard_ads.empty:
+        return {
+            'check_name': 'Headline Variations',
+            'status': 'INFO',
+            'message': 'No standard ads to check (all are carousel/catalogue/boosted)',
+            'details': None,
+            'count': 0,
+            'total': 0,
+            'percentage': 0
+        }
+    
+    # Calculate headline counts - consider both asset feed and story-based ads
+    def count_headlines(row):
+        # First try asset_feed_titles (DCO/dynamic ads)
+        asset_count = count_pipe_separated_values(row.get('asset_feed_titles', 'NA'))
+        if asset_count > 0:
+            return asset_count
+        
+        # For story-based ads, check story_link_name and story_video_title
+        story_headline = 0
+        story_name = row.get('story_link_name', 'NA')
+        video_title = row.get('story_video_title', 'NA')
+        
+        if not is_empty_value(story_name):
+            story_headline += 1
+        if not is_empty_value(video_title):
+            story_headline += 1
+            
+        return story_headline
+    
+    standard_ads['headline_count'] = standard_ads.apply(count_headlines, axis=1)
     
     min_headlines = THRESHOLDS['min_headline_count']
-    ads_insufficient = ads_df[ads_df['headline_count'] < min_headlines]
+    ads_insufficient = standard_ads[standard_ads['headline_count'] < min_headlines]
     
     count = len(ads_insufficient)
-    total = len(ads_df)
+    total = len(standard_ads)
     percentage = round((count / total) * 100, 2) if total > 0 else 0
     
     status = 'PASS' if count == 0 else 'WARNING' if count < total * 0.3 else 'FAIL'
@@ -79,13 +114,49 @@ def check_primary_text_count(ads_df: pd.DataFrame) -> Dict[str, Any]:
             'percentage': 0
         }
     
-    ads_df['primary_text_count'] = ads_df['asset_feed_bodies'].apply(count_pipe_separated_values)
+    # Exclude carousel, catalogue, and boosted post ads
+    is_carousel = ads_df.apply(has_child_attachments, axis=1)
+    is_catalogue = ads_df.apply(is_catalogue_ad, axis=1)
+    is_boosted = ads_df.apply(is_boosted_post_ad, axis=1)
+    standard_ads = ads_df[~is_carousel & ~is_catalogue & ~is_boosted].copy()
+    
+    if standard_ads.empty:
+        return {
+            'check_name': 'Primary Text Variations',
+            'status': 'INFO',
+            'message': 'No standard ads to check (all are carousel/catalogue/boosted)',
+            'details': None,
+            'count': 0,
+            'total': 0,
+            'percentage': 0
+        }
+    
+    # Calculate primary text counts - consider both asset feed and story-based ads
+    def count_primary_text(row):
+        # First try asset_feed_bodies
+        asset_count = count_pipe_separated_values(row.get('asset_feed_bodies', 'NA'))
+        if asset_count > 0:
+            return asset_count
+        
+        # For story-based ads, check story_link_message and story_video_message
+        story_text = 0
+        link_message = row.get('story_link_message', 'NA')
+        video_message = row.get('story_video_message', 'NA')
+        
+        if not is_empty_value(link_message):
+            story_text += 1
+        if not is_empty_value(video_message):
+            story_text += 1
+            
+        return story_text
+    
+    standard_ads['primary_text_count'] = standard_ads.apply(count_primary_text, axis=1)
     
     min_texts = THRESHOLDS['min_primary_text_count']
-    ads_insufficient = ads_df[ads_df['primary_text_count'] < min_texts]
+    ads_insufficient = standard_ads[standard_ads['primary_text_count'] < min_texts]
     
     count = len(ads_insufficient)
-    total = len(ads_df)
+    total = len(standard_ads)
     percentage = round((count / total) * 100, 2) if total > 0 else 0
     
     status = 'PASS' if count == 0 else 'WARNING' if count < total * 0.3 else 'FAIL'
@@ -126,13 +197,46 @@ def check_description_count(ads_df: pd.DataFrame) -> Dict[str, Any]:
             'percentage': 0
         }
     
-    ads_df['description_count'] = ads_df['asset_feed_descriptions'].apply(count_pipe_separated_values)
+    # Exclude carousel, catalogue, and boosted post ads
+    is_carousel = ads_df.apply(has_child_attachments, axis=1)
+    is_catalogue = ads_df.apply(is_catalogue_ad, axis=1)
+    is_boosted = ads_df.apply(is_boosted_post_ad, axis=1)
+    standard_ads = ads_df[~is_carousel & ~is_catalogue & ~is_boosted].copy()
+    
+    if standard_ads.empty:
+        return {
+            'check_name': 'Description Variations',
+            'status': 'INFO',
+            'message': 'No standard ads to check (all are carousel/catalogue/boosted)',
+            'details': None,
+            'count': 0,
+            'total': 0,
+            'percentage': 0
+        }
+    
+    # Calculate description counts - consider both asset feed and story-based ads
+    def count_descriptions(row):
+        # First try asset_feed_descriptions
+        asset_count = count_pipe_separated_values(row.get('asset_feed_descriptions', 'NA'))
+        if asset_count > 0:
+            return asset_count
+        
+        # For story-based ads, check story_link_description
+        story_desc = 0
+        link_desc = row.get('story_link_description', 'NA')
+        
+        if not is_empty_value(link_desc):
+            story_desc += 1
+            
+        return story_desc
+    
+    standard_ads['description_count'] = standard_ads.apply(count_descriptions, axis=1)
     
     min_descriptions = THRESHOLDS['min_description_count']
-    ads_insufficient = ads_df[ads_df['description_count'] < min_descriptions]
+    ads_insufficient = standard_ads[standard_ads['description_count'] < min_descriptions]
     
     count = len(ads_insufficient)
-    total = len(ads_df)
+    total = len(standard_ads)
     percentage = round((count / total) * 100, 2) if total > 0 else 0
     
     status = 'PASS' if count == 0 else 'WARNING' if count < total * 0.4 else 'FAIL'

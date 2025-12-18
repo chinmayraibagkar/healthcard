@@ -200,8 +200,6 @@ def render_check_grid(results: Dict[int, Dict[str, Any]], columns: int = 3):
         st.subheader("📊 Details for Non-Compliant Checks")
         for check_num in sorted(failed_checks):
             render_detail_expander(check_num, results[check_num])
-    else:
-        st.success("🎉 All checks passed!")
 
 
 def render_summary_stats(results: Dict[int, Dict[str, Any]]):

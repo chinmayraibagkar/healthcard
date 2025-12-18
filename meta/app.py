@@ -19,6 +19,7 @@ from meta.components.ui_components import (
     render_download_button,
     render_platform_badge
 )
+from meta.audiences_explorer import render_audiences_explorer
 
 
 def run_meta_healthcard():
@@ -54,17 +55,35 @@ def run_meta_healthcard():
         st.error("❌ No access token available. Please configure your secrets.")
         st.stop()
     
+    # Date range selector (similar to Google)
+    st.sidebar.markdown("### 📅 Date Range")
+    date_options = {
+        "Last 7 Days": "last_7d",
+        "Last 14 Days": "last_14d",
+        "Last 30 Days": "last_30d",
+        "Last 90 Days": "last_90d",
+        "This Month": "this_month",
+        "Last Month": "last_month"
+    }
+    selected_date_range = st.sidebar.selectbox(
+        "Select Date Range",
+        options=list(date_options.keys()),
+        index=2,  # Default to Last 30 Days
+        key="meta_date_range"
+    )
+    date_preset = date_options[selected_date_range]
+    
     # Run analysis button
     st.sidebar.markdown("---")
     if st.sidebar.button("🔍 Run Health Check Analysis", type="primary", use_container_width=True):
         # Clear previous results
         st.session_state.meta_results = {}
         
-        # Fetch data
-        with st.spinner("Fetching ads and adsets data..."):
+        # Fetch data with impressions filtering
+        with st.spinner(f"Fetching ads and adsets with impressions ({selected_date_range})..."):
             try:
-                ads_raw = get_ads_for_account(selected_account_id, access_token, active_only=True)
-                adsets_raw = get_adsets_for_account(selected_account_id, access_token, active_only=True)
+                ads_raw = get_ads_for_account(selected_account_id, access_token, date_preset=date_preset)
+                adsets_raw = get_adsets_for_account(selected_account_id, access_token, date_preset=date_preset)
                 
                 if not ads_raw and not adsets_raw:
                     st.warning("⚠️ No active ads or adsets found for this account.")
@@ -74,13 +93,13 @@ def run_meta_healthcard():
                 ads_df = flatten_ad_data(ads_raw) if ads_raw else pd.DataFrame()
                 adsets_df = flatten_adset_data(adsets_raw) if adsets_raw else pd.DataFrame()
                 
-                st.success(f"✅ Fetched {len(ads_df)} ads and {len(adsets_df)} adsets")
+                # Data fetched successfully
                 
             except Exception as e:
                 st.error(f"❌ Error fetching data: {e}")
                 return
         
-        # Create tabs
+        # Create tabs (Audiences Explorer temporarily disabled)
         tab_tracking, tab_creative, tab_format, tab_audience = st.tabs([
             "🎯 Tracking",
             "🎨 Creative",
@@ -144,6 +163,10 @@ def run_meta_healthcard():
                 except Exception as e:
                     st.error(f"Error running audience checks: {e}")
         
+        # Audiences Explorer Tab - temporarily disabled
+        # with tab_explorer:
+        #     render_audiences_explorer(selected_account_id, access_token)
+        
         # Download button
         if st.session_state.meta_results:
             all_results = []
@@ -187,6 +210,16 @@ def run_meta_healthcard():
                 results = st.session_state.meta_results['audience']
                 render_summary_stats(results)
                 render_check_grid(results, columns=2)
+        
+        # Audiences Explorer - temporarily disabled
+        # with tab_explorer:
+        #     # Get access token for explorer
+        #     from meta.services.meta_api_client import get_token_for_request
+        #     access_token = get_token_for_request(0)
+        #     if access_token and selected_account_id:
+        #         render_audiences_explorer(selected_account_id, access_token)
+        #     else:
+        #         st.warning("Please select an account to use Audiences Explorer.")
         
         # Download button for cached results
         all_results = []

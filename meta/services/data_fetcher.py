@@ -11,30 +11,59 @@ from meta.config.constants import BASE_URL, REQUEST_TIMEOUT
 from meta.services.meta_api_client import get_token_params
 
 
-def get_ads_for_account(account_id: str, access_token: str, active_only: bool = True) -> List[Dict]:
+def get_ads_for_account(account_id: str, access_token: str, date_preset: str = "last_30d") -> List[Dict]:
     """
     Get ads data for a specific ad account with full creative details.
+    Only returns ads that have impressions in the specified date range.
     
     Args:
         account_id: Meta ad account ID
         access_token: Access token for authentication
-        active_only: If True, only fetch ads with ACTIVE status
+        date_preset: Date range preset (e.g., 'last_7d', 'last_30d')
     
     Returns:
         List of ad dictionaries with nested creative, campaign, and adset data
     """
     try:
         clean_account_id = account_id if account_id.startswith('act_') else f"act_{account_id}"
-        url = f"{BASE_URL}/{clean_account_id}/ads"
         
-        params = {
-            'fields': 'id,name,effective_status,creative_asset_groups_spec,adset{id,name,effective_status},campaign{id,name,effective_status},tracking_specs{fb_pixel,application},creative{url_tags,asset_feed_spec{titles{text},bodies{text},descriptions{text},images{hash},videos{video_id},call_to_action_types,ad_formats},object_story_spec{link_data{message,name,description,link,call_to_action{type},child_attachments{link,name,description,call_to_action{type}}},video_data{title,message,video_id,call_to_action{type}}}}',
-            'limit': 100,
+        # First, get ad IDs with impressions in the date range
+        insights_url = f"{BASE_URL}/{clean_account_id}/insights"
+        insights_params = {
+            'level': 'ad',
+            'fields': 'ad_id,impressions',
+            'date_preset': date_preset,
+            'limit': 500,
             'access_token': access_token
         }
         
-        if active_only:
-            params['filtering'] = '[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]'
+        ad_ids_with_impressions = set()
+        
+        while insights_url:
+            response = requests.get(insights_url, params=insights_params, timeout=REQUEST_TIMEOUT)
+            if response.status_code == 200:
+                data = response.json()
+                for row in data.get('data', []):
+                    impressions = int(row.get('impressions', 0))
+                    if impressions > 0:
+                        ad_ids_with_impressions.add(row.get('ad_id'))
+                insights_url = data.get('paging', {}).get('next')
+                insights_params = {}
+            else:
+                break
+        
+        if not ad_ids_with_impressions:
+            return []
+        
+        # Now fetch full ad details for ads with impressions
+        url = f"{BASE_URL}/{clean_account_id}/ads"
+        
+        params = {
+            'fields': 'id,name,effective_status,creative_asset_groups_spec,adset{id,name,effective_status,promoted_object},campaign{id,name,effective_status},tracking_specs{fb_pixel,application},creative{effective_object_story_id,product_set_id,url_tags,asset_feed_spec{titles{text},bodies{text},descriptions{text},images{hash},videos{video_id},call_to_action_types,ad_formats},object_story_spec{link_data{message,name,description,link,call_to_action{type},child_attachments{link,name,description,call_to_action{type}}},video_data{title,message,video_id,call_to_action{type}}}}',
+            'limit': 100,
+            'access_token': access_token,
+            'filtering': '[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]'
+        }
         
         all_ads = []
         
@@ -45,41 +74,73 @@ def get_ads_for_account(account_id: str, access_token: str, active_only: bool = 
                 data = response.json()
                 all_ads.extend(data.get('data', []))
                 url = data.get('paging', {}).get('next')
-                params = {}  # Clear params for next page URL
+                params = {}
             else:
                 break
         
-        return all_ads
+        # Filter to only ads with impressions in the date range
+        filtered_ads = [ad for ad in all_ads if ad.get('id') in ad_ids_with_impressions]
+        
+        return filtered_ads
     
     except Exception as e:
         st.error(f"Error fetching ads: {e}")
         return []
 
 
-def get_adsets_for_account(account_id: str, access_token: str, active_only: bool = True) -> List[Dict]:
+def get_adsets_for_account(account_id: str, access_token: str, date_preset: str = "last_30d") -> List[Dict]:
     """
     Get adsets data for a specific ad account with targeting details.
+    Only returns adsets that have impressions in the specified date range.
     
     Args:
         account_id: Meta ad account ID
         access_token: Access token for authentication
-        active_only: If True, only fetch adsets with ACTIVE status
+        date_preset: Date range preset (e.g., 'last_7d', 'last_30d')
     
     Returns:
         List of adset dictionaries with targeting and campaign data
     """
     try:
         clean_account_id = account_id if account_id.startswith('act_') else f"act_{account_id}"
+        
+        # First, get adset IDs with impressions in the date range
+        insights_url = f"{BASE_URL}/{clean_account_id}/insights"
+        insights_params = {
+            'level': 'adset',
+            'fields': 'adset_id,impressions',
+            'date_preset': date_preset,
+            'limit': 500,
+            'access_token': access_token
+        }
+        
+        adset_ids_with_impressions = set()
+        
+        while insights_url:
+            response = requests.get(insights_url, params=insights_params, timeout=REQUEST_TIMEOUT)
+            if response.status_code == 200:
+                data = response.json()
+                for row in data.get('data', []):
+                    impressions = int(row.get('impressions', 0))
+                    if impressions > 0:
+                        adset_ids_with_impressions.add(row.get('adset_id'))
+                insights_url = data.get('paging', {}).get('next')
+                insights_params = {}
+            else:
+                break
+        
+        if not adset_ids_with_impressions:
+            return []
+        
+        # Now fetch full adset details
         url = f"{BASE_URL}/{clean_account_id}/adsets"
         
         params = {
             'fields': 'id,name,effective_status,campaign{id,name,effective_status},optimization_goal,targeting{excluded_custom_audiences{name},custom_audiences{name},publisher_platforms,targeting_automation{advantage_audience},flexible_spec}',
             'limit': 500,
-            'access_token': access_token
+            'access_token': access_token,
+            'filtering': '[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]'
         }
-        
-        if active_only:
-            params['filtering'] = '[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]'
         
         all_adsets = []
         
@@ -94,7 +155,10 @@ def get_adsets_for_account(account_id: str, access_token: str, active_only: bool
             else:
                 break
         
-        return all_adsets
+        # Filter to only adsets with impressions in the date range
+        filtered_adsets = [adset for adset in all_adsets if adset.get('id') in adset_ids_with_impressions]
+        
+        return filtered_adsets
     
     except Exception as e:
         st.error(f"Error fetching adsets: {e}")

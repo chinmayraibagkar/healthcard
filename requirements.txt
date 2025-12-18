@@ -7,6 +7,9 @@ streamlit>=1.28.0
 # Authentication (required for st.login/st.user)
 Authlib>=1.3.2
 
+# Gemini AI (for chatbot and audience analysis)
+google-generativeai>=0.3.0
+
 # Google Ads API
 google-ads>=24.0.0
 

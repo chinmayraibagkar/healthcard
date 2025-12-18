@@ -49,6 +49,57 @@ def has_child_attachments(row: pd.Series) -> bool:
     return False
 
 
+def is_catalogue_ad(row: pd.Series) -> bool:
+    """
+    Check if ad is a catalogue ad (product catalog ad).
+    Catalogue ads pull content dynamically from product catalogs and shouldn't be
+    checked for static headline/text variations.
+    
+    Identified by having a product_set_id in the creative or adset's promoted_object.
+    """
+    product_set_id = row.get('product_set_id', 'NA')
+    if pd.isna(product_set_id):
+        return False
+    product_set_str = str(product_set_id).strip().upper()
+    return product_set_str != 'NA' and product_set_str != '' and product_set_str != 'NONE'
+
+
+def is_boosted_post_ad(row: pd.Series) -> bool:
+    """
+    Check if ad is a boosted post or existing post used as an ad.
+    These ads use existing page posts as creative, so they have fixed content
+    and shouldn't be checked for headline/text variations.
+    
+    A true boosted post has:
+    - effective_object_story_id (indicates using an existing post)
+    - AND NO asset_feed_spec content (no uploaded titles/bodies/descriptions)
+    
+    Ads created in Ads Manager with custom creative will have asset_feed_spec
+    even if they also have an effective_object_story_id.
+    """
+    story_id = row.get('effective_object_story_id', 'NA')
+    
+    # Check if has effective_object_story_id
+    if pd.isna(story_id):
+        return False
+    story_str = str(story_id).strip().upper()
+    has_story_id = story_str != 'NA' and story_str != '' and story_str != 'NONE'
+    
+    if not has_story_id:
+        return False
+    
+    # Check if has asset_feed_spec content (uploaded creative)
+    # If it has asset feed content, it's an Ads Manager ad, not a boosted post
+    titles = row.get('asset_feed_titles', 'NA')
+    bodies = row.get('asset_feed_bodies', 'NA')
+    
+    has_asset_titles = not is_empty_value(titles)
+    has_asset_bodies = not is_empty_value(bodies)
+    
+    # True boosted post = has story ID but NO uploaded asset feed content
+    return not (has_asset_titles or has_asset_bodies)
+
+
 def join_unique(values: List[str]) -> str:
     """
     Join unique non-None values with pipe separator.
@@ -156,10 +207,15 @@ def flatten_ad_data(ads_data: List[dict]) -> pd.DataFrame:
         
         # Extract creative information
         creative = ad.get('creative', {})
+        adset = ad.get('adset', {})
+        promoted_object = adset.get('promoted_object', {})
+        
         ad_info.update({
             'creative_id': creative.get('id', 'NA'),
             'url_tags': creative.get('url_tags', 'NA'),
-            'creative_asset_groups_spec': str(ad.get('creative_asset_groups_spec', 'NA'))
+            'creative_asset_groups_spec': str(ad.get('creative_asset_groups_spec', 'NA')),
+            'product_set_id': creative.get('product_set_id', promoted_object.get('product_set_id', 'NA')),
+            'effective_object_story_id': creative.get('effective_object_story_id', 'NA')
         })
         
         # Extract asset feed spec
@@ -249,7 +305,18 @@ def flatten_ad_data(ads_data: List[dict]) -> pd.DataFrame:
         
         flattened_data.append(ad_info)
     
-    return pd.DataFrame(flattened_data)
+    df = pd.DataFrame(flattened_data)
+    
+    # Filter to keep only truly active ads (ad, adset, AND campaign must be ACTIVE)
+    if not df.empty and 'ad_effective_status' in df.columns:
+        active_mask = (
+            (df['ad_effective_status'] == 'ACTIVE') &
+            (df['adset_status'] == 'ACTIVE') &
+            (df['campaign_status'] == 'ACTIVE')
+        )
+        df = df[active_mask].reset_index(drop=True)
+    
+    return df
 
 
 def flatten_adset_data(adsets_data: List[dict]) -> pd.DataFrame:
@@ -291,4 +358,14 @@ def flatten_adset_data(adsets_data: List[dict]) -> pd.DataFrame:
         
         flattened_data.append(adset_info)
     
-    return pd.DataFrame(flattened_data)
+    df = pd.DataFrame(flattened_data)
+    
+    # Filter to keep only truly active adsets (adset AND campaign must be ACTIVE)
+    if not df.empty and 'adset_effective_status' in df.columns:
+        active_mask = (
+            (df['adset_effective_status'] == 'ACTIVE') &
+            (df['campaign_status'] == 'ACTIVE')
+        )
+        df = df[active_mask].reset_index(drop=True)
+    
+    return df
