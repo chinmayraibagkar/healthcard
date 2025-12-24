@@ -11,7 +11,8 @@ from config.constants import (
     SPEND_SPLIT_THRESHOLDS, SPEND_SPLIT_TOLERANCE,
     MIN_RSAS_PER_AD_GROUP, MIN_UNIQUE_RSA_RATIO,
     MIN_SITELINKS_PER_RSA, QUALITY_SCORE_THRESHOLDS,
-    AD_GROUP_TYPE_KEYWORDS, CHECK_DESCRIPTIONS
+    AD_GROUP_TYPE_KEYWORDS, CHECK_DESCRIPTIONS,
+    RSA_MIN_HEADLINES, RSA_MIN_DESCRIPTIONS
 )
 
 
@@ -375,10 +376,12 @@ def check_unique_rsas_ratio(client, customer_id: str) -> Dict[str, Any]:
 def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
     """
     Check 6: Cross Keyword Negation
-    Keywords from any ad-group should be negated in other ad-groups within the SAME CAMPAIGN as Exact Match.
-    This ensures a keyword from Ad Group A is negated in Ad Group B (within same campaign).
+    EXACT match keywords from any ad-group should be negated in other ad-groups within the SAME CAMPAIGN.
+    
+    Note: Phrase/Broad match keywords negated as EXACT in other ad groups are acceptable
+    because EXACT negative won't block phrase/broad matches.
     """
-    # Get positive keywords by campaign and ad group
+    # Get positive keywords by campaign and ad group (include match type)
     positive_query = """
         SELECT 
             campaign.id,
@@ -401,7 +404,7 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
     
     positive_rows = execute_query(client, customer_id, positive_query)
     
-    # Get negative keywords
+    # Get negative keywords (only EXACT match negatives matter for this check)
     negative_query = """
         SELECT 
             campaign.id,
@@ -422,7 +425,7 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
     
     negative_rows = execute_query(client, customer_id, negative_query)
     
-    # Organize data by campaign
+    # Organize data by campaign - now storing keyword with its match type
     campaign_data = defaultdict(lambda: {
         "name": "",
         "ad_groups": {},
@@ -432,15 +435,16 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
     for row in positive_rows:
         campaign_id = str(row.campaign.id)
         ad_group_id = str(row.ad_group.id)
+        match_type = row.ad_group_criterion.keyword.match_type.name
         campaign_data[campaign_id]["name"] = row.campaign.name
         
         if ad_group_id not in campaign_data[campaign_id]["ad_groups"]:
             campaign_data[campaign_id]["ad_groups"][ad_group_id] = {
                 "name": row.ad_group.name,
-                "keywords": set()
+                "keywords": []  # Changed to list to store tuples of (keyword, match_type)
             }
-        campaign_data[campaign_id]["ad_groups"][ad_group_id]["keywords"].add(
-            row.ad_group_criterion.keyword.text.lower()
+        campaign_data[campaign_id]["ad_groups"][ad_group_id]["keywords"].append(
+            (row.ad_group_criterion.keyword.text.lower(), match_type)
         )
     
     for row in negative_rows:
@@ -453,6 +457,7 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
             )
     
     # Check cross-negation within each campaign
+    # Only flag EXACT match keywords that are not negated as EXACT in other ad groups
     missing_negations = []
     total_checks = 0
     passed_checks = 0
@@ -465,8 +470,12 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
         for ag_id in ad_group_ids:
             ag_info = data["ad_groups"][ag_id]
             
-            # Check if each keyword is negated in OTHER ad groups
-            for keyword in ag_info["keywords"]:
+            # Check if each EXACT keyword is negated in OTHER ad groups
+            for keyword, source_match_type in ag_info["keywords"]:
+                # Skip phrase/broad keywords - they don't need exact negation
+                if source_match_type != "EXACT":
+                    continue
+                
                 for other_ag_id in ad_group_ids:
                     if other_ag_id == ag_id:
                         continue  # Skip same ad group
@@ -481,16 +490,17 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
                             "campaign_name": data["name"],
                             "source_ad_group": ag_info["name"],
                             "keyword": keyword,
+                            "match_type": source_match_type,
                             "missing_in_ad_group": data["ad_groups"][other_ag_id]["name"],
-                            "issue": f"Keyword not negated in other ad group"
+                            "issue": f"EXACT keyword not negated in other ad group"
                         })
     
     if total_checks == 0:
         return {
             "status": "info",
             "score": None,
-            "message": "No campaigns with multiple ad groups found for cross-negation",
-            "threshold": "Keywords from one ad group should be negated in other ad groups (within same campaign)",
+            "message": "No EXACT match keywords found for cross-negation check",
+            "threshold": "EXACT match keywords should be negated in other ad groups (within same campaign)",
             "details": pd.DataFrame()
         }
     
@@ -501,8 +511,8 @@ def check_cross_keyword_negation(client, customer_id: str) -> Dict[str, Any]:
     return {
         "status": status,
         "score": score,
-        "message": f"{passed_checks}/{total_checks} cross-negations in place ({score:.1f}%)",
-        "threshold": "Keywords from one ad group should be negated in other ad groups (within same campaign)",
+        "message": f"{passed_checks}/{total_checks} EXACT keyword cross-negations in place ({100-score:.1f}% compliant)",
+        "threshold": "EXACT match keywords should be negated in other ad groups (within same campaign)",
         "details": pd.DataFrame(missing_negations[:100]) if missing_negations else pd.DataFrame()  # Limit to 100 rows
     }
 
@@ -923,6 +933,145 @@ def check_keywords_without_impressions(client, customer_id: str) -> Dict[str, An
     }
 
 
+def check_rsa_headlines_count(client, customer_id: str) -> Dict[str, Any]:
+    """
+    Check 32: RSA Headlines Count
+    Each RSA should have 15 headlines for optimal performance.
+    """
+    query = """
+        SELECT 
+            campaign.id,
+            campaign.name,
+            ad_group.id,
+            ad_group.name,
+            ad_group_ad.ad.id,
+            ad_group_ad.ad.responsive_search_ad.headlines,
+            campaign.status,
+            ad_group.status,
+            ad_group_ad.status
+        FROM ad_group_ad
+        WHERE campaign.advertising_channel_type = 'SEARCH'
+        AND campaign.status = 'ENABLED'
+        AND ad_group.status = 'ENABLED'
+        AND ad_group_ad.status = 'ENABLED'
+        AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'
+    """
+    
+    rows = execute_query(client, customer_id, query)
+    
+    if not rows:
+        return {
+            "status": "info",
+            "score": None,
+            "message": "No RSAs found",
+            "details": pd.DataFrame()
+        }
+    
+    ads_with_issues = []
+    compliant_count = 0
+    
+    for row in rows:
+        headlines = row.ad_group_ad.ad.responsive_search_ad.headlines or []
+        headline_count = len(headlines)
+        
+        if headline_count >= RSA_MIN_HEADLINES:
+            compliant_count += 1
+        else:
+            ads_with_issues.append({
+                "campaign_name": row.campaign.name,
+                "ad_group_name": row.ad_group.name,
+                "ad_id": str(row.ad_group_ad.ad.id),
+                "headline_count": headline_count,
+                "issue": f"Has {headline_count} headlines, needs {RSA_MIN_HEADLINES}"
+            })
+    
+    total = len(rows)
+    non_compliant_count = len(ads_with_issues)
+    # INVERTED: Show percentage of RSAs with fewer than 15 headlines
+    score = (non_compliant_count / total * 100) if total > 0 else 0
+    
+    # Inverted status: low score = good
+    status = "pass" if score == 0 else "warning" if score <= 20 else "fail"
+    
+    return {
+        "status": status,
+        "score": score,
+        "message": f"{compliant_count}/{total} RSAs have {RSA_MIN_HEADLINES} headlines",
+        "threshold": f"Each RSA should have {RSA_MIN_HEADLINES} headlines",
+        "details": pd.DataFrame(ads_with_issues) if ads_with_issues else pd.DataFrame()
+    }
+
+
+
+def check_rsa_descriptions_count(client, customer_id: str) -> Dict[str, Any]:
+    """
+    Check 33: RSA Descriptions Count
+    Each RSA should have 4 descriptions for optimal performance.
+    """
+    query = """
+        SELECT 
+            campaign.id,
+            campaign.name,
+            ad_group.id,
+            ad_group.name,
+            ad_group_ad.ad.id,
+            ad_group_ad.ad.responsive_search_ad.descriptions,
+            campaign.status,
+            ad_group.status,
+            ad_group_ad.status
+        FROM ad_group_ad
+        WHERE campaign.advertising_channel_type = 'SEARCH'
+        AND campaign.status = 'ENABLED'
+        AND ad_group.status = 'ENABLED'
+        AND ad_group_ad.status = 'ENABLED'
+        AND ad_group_ad.ad.type = 'RESPONSIVE_SEARCH_AD'
+    """
+    
+    rows = execute_query(client, customer_id, query)
+    
+    if not rows:
+        return {
+            "status": "info",
+            "score": None,
+            "message": "No RSAs found",
+            "details": pd.DataFrame()
+        }
+    
+    ads_with_issues = []
+    compliant_count = 0
+    
+    for row in rows:
+        descriptions = row.ad_group_ad.ad.responsive_search_ad.descriptions or []
+        description_count = len(descriptions)
+        
+        if description_count >= RSA_MIN_DESCRIPTIONS:
+            compliant_count += 1
+        else:
+            ads_with_issues.append({
+                "campaign_name": row.campaign.name,
+                "ad_group_name": row.ad_group.name,
+                "ad_id": str(row.ad_group_ad.ad.id),
+                "description_count": description_count,
+                "issue": f"Has {description_count} descriptions, needs {RSA_MIN_DESCRIPTIONS}"
+            })
+    
+    total = len(rows)
+    non_compliant_count = len(ads_with_issues)
+    # INVERTED: Show percentage of RSAs with fewer than 4 descriptions
+    score = (non_compliant_count / total * 100) if total > 0 else 0
+    
+    # Inverted status: low score = good
+    status = "pass" if score == 0 else "warning" if score <= 20 else "fail"
+    
+    return {
+        "status": status,
+        "score": score,
+        "message": f"{compliant_count}/{total} RSAs have {RSA_MIN_DESCRIPTIONS} descriptions",
+        "threshold": f"Each RSA should have {RSA_MIN_DESCRIPTIONS} descriptions",
+        "details": pd.DataFrame(ads_with_issues) if ads_with_issues else pd.DataFrame()
+    }
+
+
 
 def run_all_search_checks(client, customer_id: str) -> Dict[int, Dict[str, Any]]:
     """
@@ -940,7 +1089,9 @@ def run_all_search_checks(client, customer_id: str) -> Dict[int, Dict[str, Any]]
         (8, "Sitelinks", check_sitelinks),
         (9, "Display Path", check_display_path),
         (10, "Quality Score", check_weighted_quality_score),
-        (11, "Keywords w/o Impressions", check_keywords_without_impressions)
+        (11, "Keywords w/o Impressions", check_keywords_without_impressions),
+        (32, "RSA Headlines Count", check_rsa_headlines_count),
+        (33, "RSA Descriptions Count", check_rsa_descriptions_count)
     ]
     
     for check_num, check_name, check_func in checks:

@@ -19,7 +19,8 @@ from meta.components.ui_components import (
     render_download_button,
     render_platform_badge
 )
-from meta.audiences_explorer import render_audiences_explorer
+# TEMPORARILY DISABLED
+# from meta.audiences_explorer import render_audiences_explorer
 
 
 def run_meta_healthcard():
@@ -99,7 +100,7 @@ def run_meta_healthcard():
                 st.error(f"❌ Error fetching data: {e}")
                 return
         
-        # Create tabs (Audiences Explorer temporarily disabled)
+        # Create tabs - Audiences Explorer temporarily disabled
         tab_tracking, tab_creative, tab_format, tab_audience = st.tabs([
             "🎯 Tracking",
             "🎨 Creative",
@@ -163,7 +164,7 @@ def run_meta_healthcard():
                 except Exception as e:
                     st.error(f"Error running audience checks: {e}")
         
-        # Audiences Explorer Tab - temporarily disabled
+        # Audiences Explorer Tab - TEMPORARILY DISABLED
         # with tab_explorer:
         #     render_audiences_explorer(selected_account_id, access_token)
         
@@ -176,6 +177,7 @@ def run_meta_healthcard():
     
     # Show cached results if available
     elif 'meta_results' in st.session_state and st.session_state.meta_results:
+        # Tabs for cached results - Audiences Explorer temporarily disabled
         tab_tracking, tab_creative, tab_format, tab_audience = st.tabs([
             "🎯 Tracking",
             "🎨 Creative",
@@ -211,7 +213,7 @@ def run_meta_healthcard():
                 render_summary_stats(results)
                 render_check_grid(results, columns=2)
         
-        # Audiences Explorer - temporarily disabled
+        # Audiences Explorer - TEMPORARILY DISABLED
         # with tab_explorer:
         #     # Get access token for explorer
         #     from meta.services.meta_api_client import get_token_for_request

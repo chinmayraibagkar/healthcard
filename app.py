@@ -130,7 +130,7 @@ def show_login_page():
             </div>
         """, unsafe_allow_html=True)
         
-        st.button("🔐 Sign in with Google", on_click=st.login, use_container_width=True, type="primary")
+        st.button("🔐 Sign in with Google", on_click=st.login, width="stretch", type="primary")
 
 
 def is_local_development() -> bool:
@@ -213,9 +213,9 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.markdown(f"**👤 Logged in as:**")
     st.sidebar.caption(user_email)
-    st.sidebar.button("🚪 Logout", on_click=st.logout, use_container_width=True)
+    st.sidebar.button("🚪 Logout", on_click=st.logout, width="stretch")
     
-    # AI Chatbot - temporarily disabled
+    # AI Chatbot in main area (below platform content) - TEMPORARILY DISABLED
     # st.markdown("---")
     # from shared.chatbot import render_chatbot_expander
     # render_chatbot_expander()

@@ -305,6 +305,9 @@ def check_cta_presence(ads_df: pd.DataFrame) -> Dict[str, Any]:
     """
     Check if ads have call-to-action (CTA) configured.
     
+    Note: Excludes catalogue ads and boosted posts as these have CTAs
+    defined at the product/post level which may not appear in API fields.
+    
     Args:
         ads_df: DataFrame with flattened ad data
     
@@ -322,14 +325,30 @@ def check_cta_presence(ads_df: pd.DataFrame) -> Dict[str, Any]:
             'percentage': 0
         }
     
-    ads_without_cta = ads_df[
-        ads_df['asset_feed_call_to_action_types'].apply(is_empty_value) &
-        ads_df['story_link_call_to_action'].apply(is_empty_value) &
-        ads_df['story_video_call_to_action'].apply(is_empty_value)
+    # Exclude catalogue and boosted post ads - they have CTAs at product/post level
+    is_catalogue = ads_df.apply(is_catalogue_ad, axis=1)
+    is_boosted = ads_df.apply(is_boosted_post_ad, axis=1)
+    standard_ads = ads_df[~is_catalogue & ~is_boosted].copy()
+    
+    if standard_ads.empty:
+        return {
+            'check_name': 'Call-to-Action Presence',
+            'status': 'INFO',
+            'message': 'No standard ads to check (all are catalogue/boosted posts)',
+            'details': None,
+            'count': 0,
+            'total': 0,
+            'percentage': 0
+        }
+    
+    ads_without_cta = standard_ads[
+        standard_ads['asset_feed_call_to_action_types'].apply(is_empty_value) &
+        standard_ads['story_link_call_to_action'].apply(is_empty_value) &
+        standard_ads['story_video_call_to_action'].apply(is_empty_value)
     ]
     
     count = len(ads_without_cta)
-    total = len(ads_df)
+    total = len(standard_ads)
     percentage = round((count / total) * 100, 2) if total > 0 else 0
     
     status = 'PASS' if count == 0 else 'WARNING' if count < total * 0.2 else 'FAIL'

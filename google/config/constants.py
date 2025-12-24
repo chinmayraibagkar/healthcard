@@ -29,6 +29,10 @@ MIN_UNIQUE_RSA_RATIO = 1.0  # 1:1 ratio
 # Check 8: Sitelinks per RSA
 MIN_SITELINKS_PER_RSA = 4
 
+# Check 32 & 33: RSA Headlines and Descriptions Count
+RSA_MIN_HEADLINES = 15
+RSA_MIN_DESCRIPTIONS = 4
+
 # Check 10: Quality Score Thresholds
 QUALITY_SCORE_THRESHOLDS = {
     "brand": 9,        # Brand QS should be >= 9
@@ -100,7 +104,7 @@ AD_STRENGTH_VALUES = [
 # =============================
 
 UNIVERSAL_CHECKS = [3, 12, 13]
-SEARCH_CHECKS = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11]
+SEARCH_CHECKS = [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 32, 33]
 PMAX_CHECKS = [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]
 APP_CHECKS = [28, 29, 30, 31]
 
@@ -139,7 +143,9 @@ CHECK_DESCRIPTIONS = {
     28: "Single In-App Action Optimization",
     29: "Deferred Deep Linking",
     30: "Custom Store Listing",
-    31: "Headlines/Descriptions >= 5 each (App)"
+    31: "Headlines/Descriptions >= 5 each (App)",
+    32: "RSA Headlines Count - 15 per RSA",
+    33: "RSA Descriptions Count - 4 per RSA"
 }
 
 # =============================
